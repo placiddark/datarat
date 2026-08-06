@@ -24,6 +24,10 @@
   a { color: #9be0ff; }
   .meta { font-size: 10px; opacity: 0.7; margin-top: 4px; }
   footer { padding: 8px 16px; font-size: 10px; opacity: 0.6; border-top: 1px solid #1f2b3d; }
+  .footer-links { display: flex; gap: 12px; margin-bottom: 4px; }
+  .footer-links a { color: #9be0ff; text-decoration: none; font-size: 10px; }
+  .footer-links a:hover { color: #3aa5ff; }
+  .footer-copy { opacity: 0.5; }
   input, textarea { background: #0b1d3a; color: #d0f0ff; border: 1px solid #1f4f80; padding: 6px; font-family: inherit; font-size: 11px; border-radius: 4px; width: 100%; }
   button.action { background: #0a3d6e; color: #9be0ff; border: 1px solid #3aa5ff; padding: 8px 12px; font-family: inherit; font-size: 11px; cursor: pointer; border-radius: 4px; margin-top: 8px; }
   button.action:hover { background: #123055; }
@@ -109,7 +113,12 @@
     </section>
   </main>
   <footer>
-    DATARAT // 32,768 Hz // T↔R ACTIVE // ⟡₰⟐∿ 241
+    <div class="footer-links">
+      <a href="https://placiddark.github.io/datarat/" target="_blank">Organization URL</a>
+      <a href="/terms" target="_blank">Terms of Service</a>
+      <a href="/privacy" target="_blank">Privacy Policy</a>
+    </div>
+    <div class="footer-copy">DATARAT // 32,768 Hz // T↔R ACTIVE // ⟡₰⟐∿ 241</div>
   </footer>
 </div>
 
