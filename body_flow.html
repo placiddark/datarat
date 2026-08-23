@@ -18,6 +18,15 @@
     width: 100%; height: 100%; 
     display: block; 
   }
+  #video { 
+    position: absolute; 
+    top: -9999px; 
+    left: -9999px; 
+    width: 640px; 
+    height: 480px; 
+    opacity: 0; 
+    pointer-events: none; 
+  }
   #ui {
     position: absolute; top: 12px; left: 12px; right: 12px;
     display: flex; justify-content: space-between; pointer-events: none;
@@ -57,7 +66,6 @@
     transition: transform 0.2s;
   }
   #startBtn:active { transform: scale(0.95); }
-  #video { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -74,6 +82,7 @@
      Move your <strong>body</strong> to dodge the void.</p>
   <p style="font-size: 12px; color:#888;">Requires webcam · Camera is processed locally · Nothing leaves your device</p>
   <button id="startBtn">INITIALIZE</button>
+  <p id="fallbackHint" style="margin-top:10px;font-size:11px;color:#666;display:none;">If camera fails: click/touch canvas to move · hold right-click for shield</p>
 </div>
 
 <div id="ui" class="hidden">
@@ -92,6 +101,7 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('startOverlay');
 const ui = document.getElementById('ui');
+const fallbackHint = document.getElementById('fallbackHint');
 
 let W, H;
 function resize() {
@@ -113,20 +123,88 @@ const state = {
   input: { leftHand: { x: 0.5, y: 0.5, z: 0 }, rightHand: { x: 0.5, y: 0.5, z: 0 }, left: { x: 0.5, y: 0.5 }, right: { x: 0.5, y: 0.5 } },
   difficulty: 1.0,
   lastSpawn: 0,
-  cameraReady: false
+  cameraReady: false,
+  useFallback: false
 };
 
+// ── Fallback: mouse/touch control ───────────────────────────────
+let mouseDown = false;
+function updateFallbackInput() {
+  if (!state.useFallback) return;
+  const rect = canvas.getBoundingClientRect();
+  const clientX = state.input._clientX || (W / 2);
+  const clientY = state.input._clientY || (H / 2);
+  const x = (clientX - rect.left) / W;
+  const y = (clientY - rect.top) / H;
+  state.input.left = { x, y };
+  state.input.right = mouseDown ? { x, y } : { x: -1, y: -1 };
+  state.input.leftHand = { x, y, z: 0 };
+  state.input.rightHand = mouseDown ? { x, y, z: 0 } : { x: -1, y: -1, z: 0 };
+  state.cameraReady = true;
+}
+window.addEventListener('mousemove', (e) => { state.input._clientX = e.clientX; state.input._clientY = e.clientY; updateFallbackInput(); });
+window.addEventListener('touchmove', (e) => { state.input._clientX = e.touches[0].clientX; state.input._clientY = e.touches[0].clientY; updateFallbackInput(); }, {passive:true});
+window.addEventListener('mousedown', () => { mouseDown = true; });
+window.addEventListener('mouseup', () => { mouseDown = false; });
+window.addEventListener('touchstart', (e) => { mouseDown = true; state.input._clientX = e.touches[0].clientX; state.input._clientY = e.touches[0].clientY; updateFallbackInput(); }, {passive:true});
+window.addEventListener('touchend', () => { mouseDown = false; });
+
 // ── MediaPipe Setup ─────────────────────────────────────────────
-const pose = new Pose({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
-});
-pose.setOptions({
-  modelComplexity: 1,
-  smoothLandmarks: true,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
-});
-pose.onResults(onPoseResults);
+let poseReady = false;
+let poseInstance = null;
+let cameraInstance = null;
+
+function showError(msg) {
+  const err = document.createElement('div');
+  err.style.cssText = 'position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);background:rgba(255,0,80,0.9);color:#fff;padding:16px;border-radius:8px;font-family:monospace;text-align:center;z-index:200;max-width:90vw;font-size:14px;';
+  err.textContent = msg;
+  document.body.appendChild(err);
+  setTimeout(() => err.remove(), 6000);
+}
+
+async function initPose() {
+  try {
+    poseInstance = new Pose({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+    });
+    poseInstance.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    poseInstance.onResults(onPoseResults);
+    
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    video.srcObject = stream;
+    video.load();
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => {
+        video.play().then(resolve).catch(reject);
+      };
+      video.onerror = reject;
+      setTimeout(() => reject(new Error('Video play timeout')), 5000);
+    });
+    
+    await poseInstance.initialize();
+    
+    // Use requestAnimationFrame loop instead of Camera utility
+    async function tick() {
+      if (!state.running) return;
+      if (video.readyState >= 2) {
+        await poseInstance.send({ image: video });
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+    
+    return true;
+  } catch (e) {
+    console.error('Pose init failed:', e);
+    showError('POSE INIT FAILED: ' + e.message + '\n\nFalling back to mouse/touch control.');
+    return false;
+  }
+}
 
 function onPoseResults(results) {
   if (!state.running) return;
@@ -145,7 +223,6 @@ function onPoseResults(results) {
 // ── Game helpers ────────────────────────────────────────────────
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function lerp(a, b, t) { return a + (b - a) * t; }
 
 function spawnEntity() {
   const type = Math.random() < 0.3 ? 'void' : 'energy';
@@ -281,12 +358,14 @@ function draw() {
   if (state.shieldCooldown <= 0) {
     const rx = state.input.right.x * W;
     const ry = state.input.right.y * H;
-    ctx.strokeStyle = 'rgba(0, 170, 255, 0.8)';
-    ctx.lineWidth = 4;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = '#00aaff';
-    ctx.beginPath(); ctx.arc(rx, ry, 60, 0, Math.PI * 2); ctx.stroke();
-    ctx.shadowBlur = 0;
+    if (rx >= 0 && ry >= 0) {
+      ctx.strokeStyle = 'rgba(0, 170, 255, 0.8)';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#00aaff';
+      ctx.beginPath(); ctx.arc(rx, ry, 60, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
   }
   
   for (const p of state.particles) {
@@ -296,7 +375,7 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   
-  if (!state.cameraReady) {
+  if (!state.cameraReady && !state.useFallback) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#aaa';
@@ -317,38 +396,21 @@ function loop() {
 // ── Start handler ───────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
-    video.srcObject = stream;
-    video.load();
-    await new Promise((resolve, reject) => {
-      video.onloadedmetadata = () => {
-        video.play().then(resolve).catch(reject);
-      };
-      video.onerror = reject;
-    });
-    await pose.initialize();
-    const camera = new Camera(video, { onFrame: async () => await pose.send({ image: video }) });
-    camera.start();
+    const poseOk = await initPose();
+    if (!poseOk) {
+      state.useFallback = true;
+      fallbackHint.style.display = 'block';
+      state.cameraReady = true;
+    }
     
     overlay.classList.add('hidden');
     ui.classList.remove('hidden');
     state.running = true;
-    
-    async function tick() {
-      if (!state.running) return;
-      await pose.send({ image: video });
-      requestAnimationFrame(tick);
-    }
     loop();
     draw();
-    tick();
   } catch (e) {
     console.error(e);
-    const err = document.createElement('div');
-    err.style.cssText = 'position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);background:rgba(255,0,80,0.9);color:#fff;padding:16px;border-radius:8px;font-family:monospace;text-align:center;z-index:200;max-width:90vw;';
-    err.textContent = 'INIT FAILED: ' + e.message;
-    document.body.appendChild(err);
-    setTimeout(() => err.remove(), 8000);
+    showError('INIT FAILED: ' + e.message);
   }
 });
 </script>
