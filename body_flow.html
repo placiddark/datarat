@@ -57,7 +57,7 @@
     transition: transform 0.2s;
   }
   #startBtn:active { transform: scale(0.95); }
-  #video { display: none; }
+  #video { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -319,8 +319,13 @@ document.getElementById('startBtn').addEventListener('click', async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
     video.srcObject = stream;
-    await video.play();
-    await new Promise(r => setTimeout(r, 500));
+    video.load();
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => {
+        video.play().then(resolve).catch(reject);
+      };
+      video.onerror = reject;
+    });
     await pose.initialize();
     const camera = new Camera(video, { onFrame: async () => await pose.send({ image: video }) });
     camera.start();
