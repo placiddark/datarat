@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BODY FLOW — Control with Your Body</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { 
+    width: 100%; height: 100%; overflow: hidden; 
+    background: radial-gradient(circle at center, #1a0a2e 0%, #0a0a0f 100%);
+    font-family: 'Courier New', monospace;
+    color: #e0e0ff;
+    touch-action: none;
+  }
+  #game { 
+    position: absolute; top: 0; left: 0; 
+    width: 100%; height: 100%; 
+    display: block; 
+  }
+  #ui {
+    position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; pointer-events: none;
+    z-index: 10;
+  }
+  .panel {
+    background: rgba(10, 10, 20, 0.7);
+    border: 1px solid rgba(100, 180, 255, 0.3);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    backdrop-filter: blur(4px);
+  }
+  #startOverlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 20px;
+  }
+  #startOverlay h1 {
+    font-size: clamp(28px, 6vw, 64px);
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #00ffcc, #ff00cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 4px;
+  }
+  #startOverlay p { max-width: 600px; line-height: 1.6; margin: 8px 0; font-size: 14px; color: #ccc; }
+  #startBtn {
+    margin-top: 20px; padding: 14px 40px;
+    background: linear-gradient(90deg, #00ffcc, #00aaff);
+    color: #000; border: none; border-radius: 30px;
+    font-size: 18px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 0 30px rgba(0,255,200,0.4);
+    transition: transform 0.2s;
+  }
+  #startBtn:active { transform: scale(0.95); }
+  #video { display: none; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<video id="video" playsinline autoplay muted></video>
+<canvas id="game"></canvas>
+
+<div id="startOverlay">
+  <h1>BODY FLOW</h1>
+  <p>Your body is the controller. No touch needed.</p>
+  <p>Move your <strong>left hand</strong> to control the energy orb.<br>
+     Move your <strong>right hand</strong> to create a shield wall.<br>
+     Move your <strong>body</strong> to dodge the void.</p>
+  <p style="font-size: 12px; color:#888;">Requires webcam · Camera is processed locally · Nothing leaves your device</p>
+  <button id="startBtn">INITIALIZE</button>
+</div>
+
+<div id="ui" class="hidden">
+  <div class="panel">⚡ ENERGY: <span id="energy">0</span></div>
+  <div class="panel">🏆 SCORE: <span id="score">0</span></div>
+  <div class="panel">🛡️ SHIELD: <span id="shield">READY</span></div>
+</div>
+
+<script type="module">
+// ── MediaPipe Pose via CDN ──────────────────────────────────────
+import { Pose } from "https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js";
+import { Camera } from "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('startOverlay');
+const ui = document.getElementById('ui');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Game state ──────────────────────────────────────────────────
+const state = {
+  running: false,
+  score: 0,
+  energy: 100,
+  shield: 100,
+  shieldCooldown: 0,
+  entities: [],
+  particles: [],
+  frame: 0,
+  input: { leftHand: { x: 0.5, y: 0.5, z: 0 }, rightHand: { x: 0.5, y: 0.5, z: 0 }, left: { x: 0.5, y: 0.5 }, right: { x: 0.5, y: 0.5 } },
+  difficulty: 1.0,
+  lastSpawn: 0,
+  cameraReady: false
+};
+
+// ── MediaPipe Setup ─────────────────────────────────────────────
+const pose = new Pose({
+  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+});
+pose.setOptions({
+  modelComplexity: 1,
+  smoothLandmarks: true,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
+});
+pose.onResults(onPoseResults);
+
+function onPoseResults(results) {
+  if (!state.running) return;
+  if (results.poseLandmarks) {
+    const lm = results.poseLandmarks;
+    // landmarks: 19 = left wrist, 20 = right wrist
+    const lw = lm[15] || lm[19];
+    const rw = lm[16] || lm[20];
+    state.input.leftHand = { x: lw.x, y: lw.y, z: lw.z };
+    state.input.rightHand = { x: rw.x, y: rw.y, z: rw.z };
+    state.input.left = { x: lw.x, y: lw.y };
+    state.input.right = { x: rw.x, y: rw.y };
+    state.cameraReady = true;
+  }
+}
+
+// ── Game helpers ────────────────────────────────────────────────
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function spawnEntity() {
+  const type = Math.random() < 0.3 ? 'void' : 'energy';
+  const from = Math.random() < 0.5 ? 'top' : 'bottom';
+  state.entities.push({
+    type,
+    from,
+    x: rand(0.1, 0.9),
+    y: from === 'top' ? -0.1 : 1.1,
+    r: rand(0.03, 0.06),
+    speed: rand(0.003, 0.008) * state.difficulty,
+    pulse: rand(0, Math.PI * 2)
+  });
+}
+
+// ── Update loop ─────────────────────────────────────────────────
+function update() {
+  if (!state.running) return;
+  state.frame++;
+  
+  // Smooth input
+  const il = state.input.left;
+  const ir = state.input.right;
+  
+  // Difficulty ramp
+  state.difficulty = 1.0 + state.score / 200;
+  
+  // Spawn
+  if (state.frame - state.lastSpawn > Math.max(15, 60 - state.difficulty * 5)) {
+    spawnEntity();
+    state.lastSpawn = state.frame;
+  }
+  
+  // Update entities
+  const playerY = state.input.left.y;
+  const playerX = state.input.left.x;
+  const rightY = state.input.right.y;
+  const rightX = state.input.right.x;
+  
+  for (let i = state.entities.length - 1; i >= 0; i--) {
+    const e = state.entities[i];
+    e.y += e.from === 'top' ? e.speed : -e.speed;
+    e.pulse += 0.05;
+    
+    // proximity to left hand
+    const d = dist({ x: e.x, y: e.y }, { x: playerX, y: playerY });
+    if (d < e.r + 0.15) {
+      if (e.type === 'energy') {
+        state.score += 10;
+        state.energy = Math.min(100, state.energy + 5);
+        for (let j = 0; j < 6; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-2,2), vy: rand(-2,2), life: 1, color: '#00ffcc' });
+        }
+      } else if (e.type === 'void' && state.shieldCooldown <= 0 && dist({ x: e.x, y: e.y }, { x: rightX, y: rightY }) < 0.15) {
+        state.shieldCooldown = 60;
+        state.energy -= 15;
+        for (let j = 0; j < 8; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-3,3), vy: rand(-3,3), life: 1, color: '#ff00cc' });
+        }
+      } else if (e.type === 'void') {
+        state.energy -= 8;
+        for (let j = 0; j < 8; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-3,3), vy: rand(-3,3), life: 1, color: '#ff0044' });
+        }
+      }
+      state.entities.splice(i, 1);
+      continue;
+    }
+    
+    if (e.y < -0.2 || e.y > 1.2) {
+      state.entities.splice(i, 1);
+      if (e.type === 'energy') state.energy = Math.max(0, state.energy - 2);
+    }
+  }
+  
+  if (state.shieldCooldown > 0) state.shieldCooldown--;
+  
+  // Particles
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+    if (p.life <= 0) state.particles.splice(i, 1);
+  }
+  
+  // Game over check
+  if (state.energy <= 0) {
+    alert(`GAME OVER — Score: ${state.score}`);
+    location.reload();
+  }
+  
+  // Update UI
+  document.getElementById('energy').textContent = Math.round(state.energy);
+  document.getElementById('score').textContent = state.score;
+  document.getElementById('shield').textContent = state.shieldCooldown > 0 ? `COOLDOWN ${Math.ceil(state.shieldCooldown/60)}s` : 'READY';
+}
+
+// ── Render loop ─────────────────────────────────────────────────
+function draw() {
+  if (!state.running) return;
+  
+  ctx.fillStyle = 'rgba(10, 10, 15, 0.25)';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Grid
+  ctx.strokeStyle = 'rgba(100, 180, 255, 0.08)';
+  ctx.lineWidth = 1;
+  const gridSize = 40;
+  for (let x = 0; x < W; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  
+  // Entities
+  for (const e of state.entities) {
+    const x = e.x * W, y = e.y * H, r = e.r * Math.min(W, H);
+    if (e.type === 'energy') {
+      const pulse = Math.sin(e.pulse) * 0.3 + 0.7;
+      ctx.fillStyle = `rgba(0, 255, 200, ${pulse})`;
+      ctx.beginPath(); ctx.arc(x, y, r * 25 * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+      ctx.beginPath(); ctx.arc(x, y, r * 8, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const pulse = Math.sin(e.pulse) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(255, 0, 80, ${pulse})`;
+      ctx.beginPath(); ctx.arc(x, y, r * 30, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(x, y, r * 15, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  
+  // Player orb (left hand)
+  const px = state.input.left.x * W;
+  const py = state.input.left.y * H;
+  const glow = ctx.createRadialGradient(px, py, 5, px, py, 40);
+  glow.addColorStop(0, 'rgba(0,255,204,0.9)');
+  glow.addColorStop(1, 'rgba(0,255,204,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(px, py, 40, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
+  
+  // Shield wall (right hand)
+  if (state.shieldCooldown <= 0) {
+    const rx = state.input.right.x * W;
+    const ry = state.input.right.y * H;
+    ctx.strokeStyle = 'rgba(0, 170, 255, 0.8)';
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00aaff';
+    ctx.beginPath(); ctx.arc(rx, ry, 60, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  
+  // Particles
+  for (const p of state.particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4 * p.life, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  
+  // Mirror / camera hint
+  if (!state.cameraReady) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Awaiting pose... please show your body to the camera', W/2, H/2);
+  }
+  
+  requestAnimationFrame(draw);
+}
+
+// ── Loop ────────────────────────────────────────────────────────
+function loop() {
+  update();
+  requestAnimationFrame(loop);
+}
+
+// ── Start handler ───────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    await new Promise(r => setTimeout(r, 500));
+    await pose.initialize();
+    const camera = new Camera(video, { onFrame: async () => await pose.send({ image: video }) });
+    camera.start();
+    
+    overlay.classList.add('hidden');
+    ui.classList.remove('hidden');
+    state.running = true;
+    loop();
+    draw();
+  } catch (e) {
+    console.error(e);
+    alert('Camera access failed. Please allow camera permissions and try again.\n\nError: ' + e.message);
+  }
+});
+</script>
+</body>
+</html>
