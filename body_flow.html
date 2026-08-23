@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>BODY FLOW — Divine Controller</title>
+<title>BODY FLOW — Five Elements</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { 
@@ -95,6 +95,7 @@
   <div class="panel">⚡ ENERGY: <span id="energy">0</span></div>
   <div class="panel">🏆 SCORE: <span id="score">0</span></div>
   <div class="panel">🛡️ SHIELD: <span id="shield">READY</span></div>
+  <div class="panel">🌀 COMPLEXITY: <span id="complexity">1.00</span></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
@@ -115,23 +116,86 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// ── Five-Element State ─────────────────────────────────────────
 const state = {
   running: false,
   score: 0,
   energy: 100,
   shield: 100,
   shieldCooldown: 0,
+  frame: 0,
+  complexity: 1.0,
+  foldingEfficiency: 1.0,
+  folds: 0,
+  misses: 0,
+  cameraReady: false,
+  useFallback: false,
+  
+  // Five Elements
+  elements: {
+    attractor: { x: 0.5, y: 0.5, pulse: 0, angle: 0 },
+    defender: { x: 0.5, y: 0.6, pulse: 0, angle: 0, active: false }
+  },
+  
+  // Spatial field
   entities: [],
   particles: [],
-  frame: 0,
-  input: { leftHand: { x: 0.5, y: 0.5, z: 0 }, rightHand: { x: 0.5, y: 0.5, z: 0 }, left: { x: 0.5, y: 0.5 }, right: { x: 0.5, y: 0.5 } },
+  traceHistory: [], // spectral attentive device
+  maxTrace: 120,
+  
+  // Compound expansion params
   difficulty: 1.0,
   lastSpawn: 0,
-  cameraReady: false,
-  useFallback: false
+  spawnAccumulator: 0,
+  
+  // Input state
+  input: { 
+    leftHand: { x: 0.5, y: 0.5, z: 0 }, 
+    rightHand: { x: 0.5, y: 0.5, z: 0 }, 
+    left: { x: 0.5, y: 0.5 }, 
+    right: { x: 0.5, y: 0.5 } 
+  }
 };
 
-// ── Fallback input ──────────────────────────────────────────────
+// ── Spectral Attentive Symbolic Devices ────────────────────────
+class TraceDevice {
+  constructor(maxLen = 120) {
+    this.buffer = [];
+    this.max = maxLen;
+  }
+  record(x, y, type, intensity = 1.0) {
+    this.buffer.push({
+      x, y, type, intensity,
+      life: 1.0,
+      birth: state.frame
+    });
+    if (this.buffer.length > this.max) this.buffer.shift();
+  }
+  update() {
+    for (let i = this.buffer.length - 1; i >= 0; i--) {
+      const t = this.buffer[i];
+      t.life -= 0.012;
+      if (t.life <= 0) this.buffer.splice(i, 1);
+    }
+  }
+  draw(ctx) {
+    for (const t of this.buffer) {
+      const alpha = t.life * 0.35 * t.intensity;
+      const size = 2 + t.life * 4;
+      ctx.fillStyle = `rgba(179, 136, 255, ${alpha})`;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = `rgba(124, 77, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(t.x * W, t.y * H, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+}
+
+const traceDevice = new TraceDevice(state.maxTrace);
+
+// ── Fallback input ─────────────────────────────────────────────
 let mouseDown = false;
 function updateFallbackInput() {
   if (!state.useFallback) return;
@@ -144,6 +208,10 @@ function updateFallbackInput() {
   state.input.right = mouseDown ? { x, y } : { x: -1, y: -1 };
   state.input.leftHand = { x, y, z: 0 };
   state.input.rightHand = mouseDown ? { x, y, z: 0 } : { x: -1, y: -1, z: 0 };
+  state.elements.attractor.x = x;
+  state.elements.attractor.y = y;
+  state.elements.defender.x = mouseDown ? x : -1;
+  state.elements.defender.y = mouseDown ? y : -1;
   state.cameraReady = true;
 }
 window.addEventListener('mousemove', (e) => { state.input._clientX = e.clientX; state.input._clientY = e.clientY; updateFallbackInput(); });
@@ -153,7 +221,7 @@ window.addEventListener('mouseup', () => { mouseDown = false; });
 window.addEventListener('touchstart', (e) => { mouseDown = true; state.input._clientX = e.touches[0].clientX; state.input._clientY = e.touches[0].clientY; updateFallbackInput(); }, {passive:true});
 window.addEventListener('touchend', () => { mouseDown = false; });
 
-// ── MediaPipe init ──────────────────────────────────────────────
+// ── MediaPipe init ─────────────────────────────────────────────
 let poseInstance = null;
 function showError(msg) {
   const err = document.createElement('div');
@@ -215,19 +283,22 @@ function onPoseResults(results) {
     state.input.rightHand = { x: rw.x, y: rw.y, z: rw.z };
     state.input.left = { x: lw.x, y: lw.y };
     state.input.right = { x: rw.x, y: rw.y };
+    state.elements.attractor.x = lw.x;
+    state.elements.attractor.y = lw.y;
+    state.elements.defender.x = rw.x;
+    state.elements.defender.y = rw.y;
     state.cameraReady = true;
   }
 }
 
-// ── Game helpers ────────────────────────────────────────────────
+// ── Five-Element Helpers ───────────────────────────────────────
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-function lerp(a, b, t) { return a + (b - a) * t; }
 
 function spawnEntity() {
-  const type = Math.random() < 0.3 ? 'void' : 'energy';
+  const type = Math.random() < 0.3 ? 'void' : 'essence';
   const from = Math.random() < 0.5 ? 'top' : 'bottom';
-  state.entities.push({
+  const entity = {
     type,
     from,
     x: rand(0.1, 0.9),
@@ -235,87 +306,161 @@ function spawnEntity() {
     r: rand(0.03, 0.07),
     speed: rand(0.004, 0.009) * state.difficulty,
     pulse: rand(0, Math.PI * 2),
-    angle: rand(0, Math.PI * 2)
-  });
+    angle: rand(0, Math.PI * 2),
+    spectralSeed: rand(0, 1000)
+  };
+  state.entities.push(entity);
+  
+  // Trace records the spawn (expansion event)
+  traceDevice.record(entity.x, entity.y, type === 'essence' ? 'spawn_essence' : 'spawn_void', 0.6);
 }
 
-// ── Update loop ─────────────────────────────────────────────────
+// ── Complexity Balance Equation ────────────────────────────────
+function updateComplexity() {
+  // Complexity = (Trace_density × Expansion_rate) / Folding_efficiency
+  const traceDensity = (state.particles.length + traceDevice.buffer.length) / 200;
+  const expansionRate = state.difficulty * (state.entities.length / 20);
+  const foldingEfficiency = Math.max(0.2, state.foldingEfficiency);
+  
+  state.complexity = (traceDensity * expansionRate) / foldingEfficiency;
+  state.complexity = Math.max(1.0, Math.min(10.0, state.complexity));
+  
+  // Update display
+  const el = document.getElementById('complexity');
+  if (el) el.textContent = state.complexity.toFixed(2);
+}
+
+// ── Update Loop — Compound Expansion & Folding ────────────────
 function update() {
   if (!state.running) return;
   state.frame++;
   
-  const il = state.input.left;
-  const ir = state.input.right;
+  // Update five elements
+  state.elements.attractor.pulse += 0.08;
+  state.elements.attractor.angle += 0.04;
+  state.elements.defender.pulse += 0.06;
+  state.elements.defender.angle += 0.03;
+  state.elements.defender.active = state.input.right.x >= 0;
   
+  // Compound expansion — difficulty scales with score
   state.difficulty = 1.0 + state.score / 180;
   
-  if (state.frame - state.lastSpawn > Math.max(12, 50 - state.difficulty * 4)) {
+  // Spawn rate increases with complexity
+  const spawnRate = Math.max(12, 55 - state.complexity * 3);
+  state.spawnAccumulator++;
+  if (state.spawnAccumulator >= spawnRate) {
     spawnEntity();
-    state.lastSpawn = state.frame;
+    state.spawnAccumulator = 0;
   }
   
-  const playerY = state.input.left.y;
-  const playerX = state.input.left.x;
-  const rightY = state.input.right.y;
-  const rightX = state.input.right.x;
-  
+  // Entity movement
   for (let i = state.entities.length - 1; i >= 0; i--) {
     const e = state.entities[i];
     e.y += e.from === 'top' ? e.speed : -e.speed;
     e.pulse += 0.06;
     e.angle += 0.02;
     
-    const d = dist({ x: e.x, y: e.y }, { x: playerX, y: playerY });
-    if (d < e.r + 0.18) {
-      if (e.type === 'energy') {
+    // Attractor-Essence Consummation
+    if (e.type === 'essence') {
+      const d = dist({ x: e.x, y: e.y }, { x: state.elements.attractor.x, y: state.elements.attractor.y });
+      if (d < e.r + 0.18) {
+        // Fold: essence collapses into attractor
         state.score += 10;
         state.energy = Math.min(100, state.energy + 5);
+        state.folds++;
+        state.foldingEfficiency = Math.max(0.3, state.foldingEfficiency - 0.005);
+        
+        // Spectral trace
+        traceDevice.record(e.x, e.y, 'fold_essence', 1.0);
         for (let j = 0; j < 10; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-4,4), vy: rand(-4,4), life: 1, color: '#b388ff', size: rand(2,5) });
+          state.particles.push({ 
+            x: e.x * W, y: e.y * H, 
+            vx: rand(-4,4), vy: rand(-4,4), 
+            life: 1, color: '#b388ff', size: rand(2,5) 
+          });
         }
-      } else if (e.type === 'void' && state.shieldCooldown <= 0 && dist({ x: e.x, y: e.y }, { x: rightX, y: rightY }) < 0.18) {
-        state.shieldCooldown = 55;
-        state.energy -= 12;
-        for (let j = 0; j < 14; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-5,5), vy: rand(-5,5), life: 1, color: '#ff80ab', size: rand(3,6) });
-        }
-      } else if (e.type === 'void') {
-        state.energy -= 6;
-        for (let j = 0; j < 12; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-5,5), vy: rand(-5,5), life: 1, color: '#7c4dff', size: rand(2,5) });
-        }
+        state.entities.splice(i, 1);
+        continue;
       }
-      state.entities.splice(i, 1);
-      continue;
     }
     
+    // Defender-Void Antagonism
+    if (e.type === 'void') {
+      const dVoid = dist({ x: e.x, y: e.y }, { x: state.elements.defender.x, y: state.elements.defender.y });
+      
+      if (state.shieldCooldown <= 0 && state.elements.defender.active && dVoid < 0.18) {
+        // Fold: void blocked by defender
+        state.shieldCooldown = 55;
+        state.energy -= 12;
+        state.folds++;
+        state.foldingEfficiency = Math.max(0.3, state.foldingEfficiency - 0.01);
+        
+        traceDevice.record(e.x, e.y, 'fold_void_block', 1.2);
+        for (let j = 0; j < 14; j++) {
+          state.particles.push({ 
+            x: e.x * W, y: e.y * H, 
+            vx: rand(-5,5), vy: rand(-5,5), 
+            life: 1, color: '#ff80ab', size: rand(3,6) 
+          });
+        }
+        state.entities.splice(i, 1);
+        continue;
+      } else if (dVoid < 0.18 || dist({ x: e.x, y: e.y }, { x: state.elements.attractor.x, y: state.elements.attractor.y }) < 0.18) {
+        // Void passes through or hits attractor
+        state.energy -= 6;
+        state.misses++;
+        state.foldingEfficiency = Math.min(2.0, state.foldingEfficiency + 0.01);
+        
+        traceDevice.record(e.x, e.y, 'void_damage', 0.8);
+        for (let j = 0; j < 12; j++) {
+          state.particles.push({ 
+            x: e.x * W, y: e.y * H, 
+            vx: rand(-5,5), vy: rand(-5,5), 
+            life: 1, color: '#7c4dff', size: rand(2,5) 
+          });
+        }
+        state.entities.splice(i, 1);
+        continue;
+      }
+    }
+    
+    // Remove if off-screen
     if (e.y < -0.2 || e.y > 1.2) {
       state.entities.splice(i, 1);
-      if (e.type === 'energy') state.energy = Math.max(0, state.energy - 2);
+      if (e.type === 'essence') {
+        state.energy = Math.max(0, state.energy - 2);
+        state.misses++;
+      }
     }
   }
   
   if (state.shieldCooldown > 0) state.shieldCooldown--;
   
+  // Update particles and trace
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
     p.x += p.vx; p.y += p.vy; p.life -= 0.025;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
+  traceDevice.update();
   
+  // Complexity balance
+  updateComplexity();
+  
+  // Game over
   if (state.energy <= 0) {
     alert('GAME OVER — Score: ' + state.score);
     location.reload();
   }
   
+  // UI
   document.getElementById('energy').textContent = Math.round(state.energy);
   document.getElementById('score').textContent = state.score;
   document.getElementById('shield').textContent = state.shieldCooldown > 0 ? 'COOLDOWN ' + Math.ceil(state.shieldCooldown / 55) + 's' : 'READY';
 }
 
-// ── Divine renderer ─────────────────────────────────────────────
+// ── Divine Renderer ────────────────────────────────────────────
 function drawDivineBackground() {
-  // Deep cosmic gradient
   const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.7);
   bg.addColorStop(0, '#1a0a2e');
   bg.addColorStop(0.5, '#0d0520');
@@ -342,7 +487,6 @@ function drawDivineBackground() {
     ctx.closePath();
     ctx.stroke();
     
-    // Inner star
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = (Math.PI / 3) * i - Math.PI/2 + Math.PI/6;
@@ -373,12 +517,10 @@ function drawEntity(e) {
   const y = e.y * H;
   const baseR = e.r * Math.min(W, H);
   
-  if (e.type === 'energy') {
-    // Divine energy orb — layered glow
+  if (e.type === 'essence') {
     const pulse = Math.sin(e.pulse) * 0.3 + 0.7;
     const r = baseR * 28 * pulse;
     
-    // Outer corona
     const corona = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.4);
     corona.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
     corona.addColorStop(0.2, 'rgba(179, 136, 255, 0.8)');
@@ -387,7 +529,6 @@ function drawEntity(e) {
     ctx.fillStyle = corona;
     ctx.beginPath(); ctx.arc(x, y, r * 1.4, 0, Math.PI * 2); ctx.fill();
     
-    // Core
     const core = ctx.createRadialGradient(x, y, 0, x, y, r * 0.35);
     core.addColorStop(0, 'rgba(255, 255, 255, 1)');
     core.addColorStop(0.5, 'rgba(230, 220, 255, 0.9)');
@@ -395,17 +536,14 @@ function drawEntity(e) {
     ctx.fillStyle = core;
     ctx.beginPath(); ctx.arc(x, y, r * 0.35, 0, Math.PI * 2); ctx.fill();
     
-    // Ring
     ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.6})`;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, r * 0.6 + Math.sin(e.pulse * 2) * 3, 0, Math.PI * 2); ctx.stroke();
     
   } else {
-    // Void entity — dark with crimson rift
     const pulse = Math.sin(e.pulse) * 0.2 + 0.8;
     const r = baseR * 32;
     
-    // Outer void haze
     const haze = ctx.createRadialGradient(x, y, r * 0.1, x, y, r * 1.5);
     haze.addColorStop(0, 'rgba(20, 0, 10, 0.95)');
     haze.addColorStop(0.4, 'rgba(80, 0, 40, 0.5)');
@@ -413,7 +551,6 @@ function drawEntity(e) {
     ctx.fillStyle = haze;
     ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.fill();
     
-    // Inner void
     const voidCore = ctx.createRadialGradient(x, y, 0, x, y, r * 0.4);
     voidCore.addColorStop(0, 'rgba(0, 0, 0, 1)');
     voidCore.addColorStop(0.7, 'rgba(20, 0, 10, 0.9)');
@@ -421,7 +558,6 @@ function drawEntity(e) {
     ctx.fillStyle = voidCore;
     ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2); ctx.fill();
     
-    // Crimson sigil ring
     ctx.strokeStyle = `rgba(255, 64, 128, ${pulse})`;
     ctx.lineWidth = 3;
     ctx.shadowBlur = 25;
@@ -431,12 +567,14 @@ function drawEntity(e) {
   }
 }
 
-function drawPlayer() {
-  const px = state.input.left.x * W;
-  const py = state.input.left.y * H;
+function drawAttractor() {
+  const el = state.elements.attractor;
+  const px = el.x * W;
+  const py = el.y * H;
+  const pulse = Math.sin(el.pulse) * 0.3 + 0.7;
   
-  // Divine orb — the player's light
-  const r = 45;
+  // Halo
+  const r = 50;
   const halo = ctx.createRadialGradient(px, py, 8, px, py, r * 2);
   halo.addColorStop(0, 'rgba(255, 255, 255, 1)');
   halo.addColorStop(0.15, 'rgba(230, 220, 255, 0.95)');
@@ -446,39 +584,40 @@ function drawPlayer() {
   ctx.fillStyle = halo;
   ctx.beginPath(); ctx.arc(px, py, r * 2, 0, Math.PI * 2); ctx.fill();
   
-  // Core brilliance
-  const core = ctx.createRadialGradient(px, py, 0, px, py, 12);
+  // Core
+  const core = ctx.createRadialGradient(px, py, 0, px, py, 14);
   core.addColorStop(0, 'rgba(255, 255, 255, 1)');
   core.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = core;
-  ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI * 2); ctx.fill();
   
-  // Rotating ring
+  // Rotating arc sigils
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(state.frame * 0.04);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.lineWidth = 2;
-  ctx.shadowBlur = 15;
+  ctx.rotate(el.angle);
+  ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.8})`;
+  ctx.lineWidth = 2.5;
+  ctx.shadowBlur = 20;
   ctx.shadowColor = '#b388ff';
-  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 1.2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI * 1.4, Math.PI * 2.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 1.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 26, Math.PI * 1.4, Math.PI * 2.2); ctx.stroke();
   ctx.shadowBlur = 0;
   ctx.restore();
 }
 
-function drawShield() {
-  if (state.shieldCooldown > 0) return;
-  const rx = state.input.right.x * W;
-  const ry = state.input.right.y * H;
-  if (rx < 0 || ry < 0) return;
+function drawDefender() {
+  const el = state.elements.defender;
+  if (!el.active || el.x < 0) return;
   
-  const r = 70;
+  const rx = el.x * W;
+  const ry = el.y * H;
+  const r = 75;
+  
   ctx.save();
   ctx.translate(rx, ry);
-  ctx.rotate(-state.frame * 0.02);
+  ctx.rotate(-el.angle);
   
-  // Outer bloom
+  // Bloom
   const bloom = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 1.3);
   bloom.addColorStop(0, 'rgba(100, 180, 255, 0)');
   bloom.addColorStop(0.7, 'rgba(100, 180, 255, 0.15)');
@@ -486,7 +625,7 @@ function drawShield() {
   ctx.fillStyle = bloom;
   ctx.beginPath(); ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2); ctx.fill();
   
-  // Hexagonal shield
+  // Hexagon
   ctx.strokeStyle = 'rgba(180, 220, 255, 0.9)';
   ctx.lineWidth = 3;
   ctx.shadowBlur = 30;
@@ -538,20 +677,22 @@ function drawVignette() {
   ctx.fillRect(0, 0, W, H);
 }
 
-// ── Main render ─────────────────────────────────────────────────
 function draw() {
   if (!state.running) return;
   
   drawDivineBackground();
   
-  // Draw entities
+  // Trace device — spectral attentive layer
+  traceDevice.draw(ctx);
+  
+  // Entities
   for (const e of state.entities) {
     drawEntity(e);
   }
   
   drawParticles();
-  drawPlayer();
-  drawShield();
+  drawAttractor();
+  drawDefender();
   drawVignette();
   
   // Awaiting pose overlay
