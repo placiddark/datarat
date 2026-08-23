@@ -84,7 +84,6 @@
 
 <!-- MediaPipe via global scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script>
 // ── Game state ──────────────────────────────────────────────────
@@ -329,11 +328,22 @@ document.getElementById('startBtn').addEventListener('click', async () => {
     overlay.classList.add('hidden');
     ui.classList.remove('hidden');
     state.running = true;
+    
+    async function tick() {
+      if (!state.running) return;
+      await pose.send({ image: video });
+      requestAnimationFrame(tick);
+    }
     loop();
     draw();
+    tick();
   } catch (e) {
     console.error(e);
-    alert('Camera access failed. Please allow camera permissions and try again.\n\nError: ' + e.message);
+    const err = document.createElement('div');
+    err.style.cssText = 'position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);background:rgba(255,0,80,0.9);color:#fff;padding:16px;border-radius:8px;font-family:monospace;text-align:center;z-index:200;max-width:90vw;';
+    err.textContent = 'INIT FAILED: ' + e.message;
+    document.body.appendChild(err);
+    setTimeout(() => err.remove(), 8000);
   }
 });
 </script>
