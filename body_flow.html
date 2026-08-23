@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>BODY FLOW — Control with Your Body</title>
+<title>BODY FLOW — Divine Controller</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { 
     width: 100%; height: 100%; overflow: hidden; 
-    background: radial-gradient(circle at center, #1a0a2e 0%, #0a0a0f 100%);
+    background: #050208;
     font-family: 'Courier New', monospace;
     color: #e0e0ff;
     touch-action: none;
@@ -33,39 +33,45 @@
     z-index: 10;
   }
   .panel {
-    background: rgba(10, 10, 20, 0.7);
-    border: 1px solid rgba(100, 180, 255, 0.3);
+    background: rgba(10, 10, 20, 0.6);
+    border: 1px solid rgba(180, 140, 255, 0.35);
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 12px;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 20px rgba(120, 80, 255, 0.15);
   }
   #startOverlay {
     position: absolute; inset: 0;
-    background: rgba(0,0,0,0.85);
+    background: rgba(5, 2, 8, 0.92);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     z-index: 100;
     text-align: center;
     padding: 20px;
   }
   #startOverlay h1 {
-    font-size: clamp(28px, 6vw, 64px);
-    margin-bottom: 10px;
-    background: linear-gradient(90deg, #00ffcc, #ff00cc);
+    font-size: clamp(32px, 7vw, 72px);
+    margin-bottom: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #b388ff 50%, #7c4dff 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    letter-spacing: 4px;
+    letter-spacing: 6px;
+    filter: drop-shadow(0 0 30px rgba(124, 77, 255, 0.6));
   }
-  #startOverlay p { max-width: 600px; line-height: 1.6; margin: 8px 0; font-size: 14px; color: #ccc; }
+  #startOverlay p { max-width: 600px; line-height: 1.7; margin: 8px 0; font-size: 14px; color: #bbb; }
   #startBtn {
-    margin-top: 20px; padding: 14px 40px;
-    background: linear-gradient(90deg, #00ffcc, #00aaff);
-    color: #000; border: none; border-radius: 30px;
+    margin-top: 24px; padding: 16px 48px;
+    background: linear-gradient(180deg, #b388ff 0%, #7c4dff 100%);
+    color: #fff; border: none; border-radius: 30px;
     font-size: 18px; font-weight: bold; cursor: pointer;
-    box-shadow: 0 0 30px rgba(0,255,200,0.4);
+    box-shadow: 0 0 40px rgba(124, 77, 255, 0.5), inset 0 0 20px rgba(255,255,255,0.2);
     transition: transform 0.2s;
+    letter-spacing: 2px;
   }
   #startBtn:active { transform: scale(0.95); }
+  #fallbackHint {
+    margin-top:10px;font-size:11px;color:#666;display:none;
+  }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -82,7 +88,7 @@
      Move your <strong>body</strong> to dodge the void.</p>
   <p style="font-size: 12px; color:#888;">Requires webcam · Camera is processed locally · Nothing leaves your device</p>
   <button id="startBtn">INITIALIZE</button>
-  <p id="fallbackHint" style="margin-top:10px;font-size:11px;color:#666;display:none;">If camera fails: click/touch canvas to move · hold right-click for shield</p>
+  <p id="fallbackHint">If camera fails: click/touch canvas to move · hold right-click for shield</p>
 </div>
 
 <div id="ui" class="hidden">
@@ -91,14 +97,12 @@
   <div class="panel">🛡️ SHIELD: <span id="shield">READY</span></div>
 </div>
 
-<!-- MediaPipe via global scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 
 <script>
-// ── Game state ──────────────────────────────────────────────────
 const video = document.getElementById('video');
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false });
 const overlay = document.getElementById('startOverlay');
 const ui = document.getElementById('ui');
 const fallbackHint = document.getElementById('fallbackHint');
@@ -127,13 +131,13 @@ const state = {
   useFallback: false
 };
 
-// ── Fallback: mouse/touch control ───────────────────────────────
+// ── Fallback input ──────────────────────────────────────────────
 let mouseDown = false;
 function updateFallbackInput() {
   if (!state.useFallback) return;
   const rect = canvas.getBoundingClientRect();
-  const clientX = state.input._clientX || (W / 2);
-  const clientY = state.input._clientY || (H / 2);
+  const clientX = state.input._clientX ?? (W / 2);
+  const clientY = state.input._clientY ?? (H / 2);
   const x = (clientX - rect.left) / W;
   const y = (clientY - rect.top) / H;
   state.input.left = { x, y };
@@ -149,14 +153,11 @@ window.addEventListener('mouseup', () => { mouseDown = false; });
 window.addEventListener('touchstart', (e) => { mouseDown = true; state.input._clientX = e.touches[0].clientX; state.input._clientY = e.touches[0].clientY; updateFallbackInput(); }, {passive:true});
 window.addEventListener('touchend', () => { mouseDown = false; });
 
-// ── MediaPipe Setup ─────────────────────────────────────────────
-let poseReady = false;
+// ── MediaPipe init ──────────────────────────────────────────────
 let poseInstance = null;
-let cameraInstance = null;
-
 function showError(msg) {
   const err = document.createElement('div');
-  err.style.cssText = 'position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);background:rgba(255,0,80,0.9);color:#fff;padding:16px;border-radius:8px;font-family:monospace;text-align:center;z-index:200;max-width:90vw;font-size:14px;';
+  err.style.cssText = 'position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);background:rgba(120,40,180,0.9);color:#fff;padding:16px;border-radius:8px;font-family:monospace;text-align:center;z-index:200;max-width:90vw;font-size:14px;box-shadow:0 0 40px rgba(124,77,255,0.6);';
   err.textContent = msg;
   document.body.appendChild(err);
   setTimeout(() => err.remove(), 6000);
@@ -188,7 +189,6 @@ async function initPose() {
     
     await poseInstance.initialize();
     
-    // Use requestAnimationFrame loop instead of Camera utility
     async function tick() {
       if (!state.running) return;
       if (video.readyState >= 2) {
@@ -197,11 +197,10 @@ async function initPose() {
       requestAnimationFrame(tick);
     }
     tick();
-    
     return true;
   } catch (e) {
     console.error('Pose init failed:', e);
-    showError('POSE INIT FAILED: ' + e.message + '\n\nFalling back to mouse/touch control.');
+    showError('DIVINE CAMERA FAILED: ' + e.message + '\n\nFalling back to mortal touch/mouse control.');
     return false;
   }
 }
@@ -223,6 +222,7 @@ function onPoseResults(results) {
 // ── Game helpers ────────────────────────────────────────────────
 function rand(min, max) { return Math.random() * (max - min) + min; }
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function lerp(a, b, t) { return a + (b - a) * t; }
 
 function spawnEntity() {
   const type = Math.random() < 0.3 ? 'void' : 'energy';
@@ -231,10 +231,11 @@ function spawnEntity() {
     type,
     from,
     x: rand(0.1, 0.9),
-    y: from === 'top' ? -0.1 : 1.1,
-    r: rand(0.03, 0.06),
-    speed: rand(0.003, 0.008) * state.difficulty,
-    pulse: rand(0, Math.PI * 2)
+    y: from === 'top' ? -0.12 : 1.12,
+    r: rand(0.03, 0.07),
+    speed: rand(0.004, 0.009) * state.difficulty,
+    pulse: rand(0, Math.PI * 2),
+    angle: rand(0, Math.PI * 2)
   });
 }
 
@@ -246,9 +247,9 @@ function update() {
   const il = state.input.left;
   const ir = state.input.right;
   
-  state.difficulty = 1.0 + state.score / 200;
+  state.difficulty = 1.0 + state.score / 180;
   
-  if (state.frame - state.lastSpawn > Math.max(15, 60 - state.difficulty * 5)) {
+  if (state.frame - state.lastSpawn > Math.max(12, 50 - state.difficulty * 4)) {
     spawnEntity();
     state.lastSpawn = state.frame;
   }
@@ -261,26 +262,27 @@ function update() {
   for (let i = state.entities.length - 1; i >= 0; i--) {
     const e = state.entities[i];
     e.y += e.from === 'top' ? e.speed : -e.speed;
-    e.pulse += 0.05;
+    e.pulse += 0.06;
+    e.angle += 0.02;
     
     const d = dist({ x: e.x, y: e.y }, { x: playerX, y: playerY });
-    if (d < e.r + 0.15) {
+    if (d < e.r + 0.18) {
       if (e.type === 'energy') {
         state.score += 10;
         state.energy = Math.min(100, state.energy + 5);
-        for (let j = 0; j < 6; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-2,2), vy: rand(-2,2), life: 1, color: '#00ffcc' });
+        for (let j = 0; j < 10; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-4,4), vy: rand(-4,4), life: 1, color: '#b388ff', size: rand(2,5) });
         }
-      } else if (e.type === 'void' && state.shieldCooldown <= 0 && dist({ x: e.x, y: e.y }, { x: rightX, y: rightY }) < 0.15) {
-        state.shieldCooldown = 60;
-        state.energy -= 15;
-        for (let j = 0; j < 8; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-3,3), vy: rand(-3,3), life: 1, color: '#ff00cc' });
+      } else if (e.type === 'void' && state.shieldCooldown <= 0 && dist({ x: e.x, y: e.y }, { x: rightX, y: rightY }) < 0.18) {
+        state.shieldCooldown = 55;
+        state.energy -= 12;
+        for (let j = 0; j < 14; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-5,5), vy: rand(-5,5), life: 1, color: '#ff80ab', size: rand(3,6) });
         }
       } else if (e.type === 'void') {
-        state.energy -= 8;
-        for (let j = 0; j < 8; j++) {
-          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-3,3), vy: rand(-3,3), life: 1, color: '#ff0044' });
+        state.energy -= 6;
+        for (let j = 0; j < 12; j++) {
+          state.particles.push({ x: e.x * W, y: e.y * H, vx: rand(-5,5), vy: rand(-5,5), life: 1, color: '#7c4dff', size: rand(2,5) });
         }
       }
       state.entities.splice(i, 1);
@@ -297,7 +299,7 @@ function update() {
   
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
-    p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+    p.x += p.vx; p.y += p.vy; p.life -= 0.025;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
   
@@ -308,80 +310,261 @@ function update() {
   
   document.getElementById('energy').textContent = Math.round(state.energy);
   document.getElementById('score').textContent = state.score;
-  document.getElementById('shield').textContent = state.shieldCooldown > 0 ? 'COOLDOWN ' + Math.ceil(state.shieldCooldown / 60) + 's' : 'READY';
+  document.getElementById('shield').textContent = state.shieldCooldown > 0 ? 'COOLDOWN ' + Math.ceil(state.shieldCooldown / 55) + 's' : 'READY';
 }
 
-// ── Render loop ─────────────────────────────────────────────────
-function draw() {
-  if (!state.running) return;
-  
-  ctx.fillStyle = 'rgba(10, 10, 15, 0.25)';
+// ── Divine renderer ─────────────────────────────────────────────
+function drawDivineBackground() {
+  // Deep cosmic gradient
+  const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.7);
+  bg.addColorStop(0, '#1a0a2e');
+  bg.addColorStop(0.5, '#0d0520');
+  bg.addColorStop(1, '#02010a');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   
-  ctx.strokeStyle = 'rgba(100, 180, 255, 0.08)';
+  // Sacred geometry — rotating hexagrams
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.rotate(state.frame * 0.003);
+  ctx.strokeStyle = 'rgba(124, 77, 255, 0.06)';
+  ctx.lineWidth = 1.5;
+  const hexR = Math.min(W, H) * 0.35;
+  for (let ring = 0; ring < 3; ring++) {
+    const r = hexR * (1 - ring * 0.25);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI/2;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    
+    // Inner star
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i - Math.PI/2 + Math.PI/6;
+      const x = Math.cos(a) * r * 0.6;
+      const y = Math.sin(a) * r * 0.6;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(179, 136, 255, 0.04)';
+    ctx.stroke();
+  }
+  ctx.restore();
+  
+  // Ethereal grid
+  ctx.strokeStyle = 'rgba(120, 80, 255, 0.03)';
   ctx.lineWidth = 1;
-  const gridSize = 40;
+  const gridSize = 60;
   for (let x = 0; x < W; x += gridSize) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
   }
   for (let y = 0; y < H; y += gridSize) {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   }
+}
+
+function drawEntity(e) {
+  const x = e.x * W;
+  const y = e.y * H;
+  const baseR = e.r * Math.min(W, H);
   
-  for (const e of state.entities) {
-    const x = e.x * W, y = e.y * H, r = e.r * Math.min(W, H);
-    if (e.type === 'energy') {
-      const pulse = Math.sin(e.pulse) * 0.3 + 0.7;
-      ctx.fillStyle = 'rgba(0, 255, 200, ' + pulse + ')';
-      ctx.beginPath(); ctx.arc(x, y, r * 25 * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255, 255, 255, ' + pulse + ')';
-      ctx.beginPath(); ctx.arc(x, y, r * 8, 0, Math.PI * 2); ctx.fill();
-    } else {
-      const pulse = Math.sin(e.pulse) * 0.2 + 0.8;
-      ctx.fillStyle = 'rgba(255, 0, 80, ' + pulse + ')';
-      ctx.beginPath(); ctx.arc(x, y, r * 30, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.arc(x, y, r * 15, 0, Math.PI * 2); ctx.fill();
-    }
+  if (e.type === 'energy') {
+    // Divine energy orb — layered glow
+    const pulse = Math.sin(e.pulse) * 0.3 + 0.7;
+    const r = baseR * 28 * pulse;
+    
+    // Outer corona
+    const corona = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.4);
+    corona.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    corona.addColorStop(0.2, 'rgba(179, 136, 255, 0.8)');
+    corona.addColorStop(0.5, 'rgba(124, 77, 255, 0.3)');
+    corona.addColorStop(1, 'rgba(124, 77, 255, 0)');
+    ctx.fillStyle = corona;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.4, 0, Math.PI * 2); ctx.fill();
+    
+    // Core
+    const core = ctx.createRadialGradient(x, y, 0, x, y, r * 0.35);
+    core.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    core.addColorStop(0.5, 'rgba(230, 220, 255, 0.9)');
+    core.addColorStop(1, 'rgba(179, 136, 255, 0)');
+    ctx.fillStyle = core;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.35, 0, Math.PI * 2); ctx.fill();
+    
+    // Ring
+    ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.6})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.6 + Math.sin(e.pulse * 2) * 3, 0, Math.PI * 2); ctx.stroke();
+    
+  } else {
+    // Void entity — dark with crimson rift
+    const pulse = Math.sin(e.pulse) * 0.2 + 0.8;
+    const r = baseR * 32;
+    
+    // Outer void haze
+    const haze = ctx.createRadialGradient(x, y, r * 0.1, x, y, r * 1.5);
+    haze.addColorStop(0, 'rgba(20, 0, 10, 0.95)');
+    haze.addColorStop(0.4, 'rgba(80, 0, 40, 0.5)');
+    haze.addColorStop(1, 'rgba(124, 77, 255, 0)');
+    ctx.fillStyle = haze;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.5, 0, Math.PI * 2); ctx.fill();
+    
+    // Inner void
+    const voidCore = ctx.createRadialGradient(x, y, 0, x, y, r * 0.4);
+    voidCore.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    voidCore.addColorStop(0.7, 'rgba(20, 0, 10, 0.9)');
+    voidCore.addColorStop(1, 'rgba(124, 77, 255, 0)');
+    ctx.fillStyle = voidCore;
+    ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2); ctx.fill();
+    
+    // Crimson sigil ring
+    ctx.strokeStyle = `rgba(255, 64, 128, ${pulse})`;
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = 'rgba(255, 64, 128, 0.8)';
+    ctx.beginPath(); ctx.arc(x, y, r * 0.7, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
   }
-  
+}
+
+function drawPlayer() {
   const px = state.input.left.x * W;
   const py = state.input.left.y * H;
-  const glow = ctx.createRadialGradient(px, py, 5, px, py, 40);
-  glow.addColorStop(0, 'rgba(0,255,204,0.9)');
-  glow.addColorStop(1, 'rgba(0,255,204,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(px, py, 40, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
   
-  if (state.shieldCooldown <= 0) {
-    const rx = state.input.right.x * W;
-    const ry = state.input.right.y * H;
-    if (rx >= 0 && ry >= 0) {
-      ctx.strokeStyle = 'rgba(0, 170, 255, 0.8)';
-      ctx.lineWidth = 4;
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = '#00aaff';
-      ctx.beginPath(); ctx.arc(rx, ry, 60, 0, Math.PI * 2); ctx.stroke();
-      ctx.shadowBlur = 0;
-    }
+  // Divine orb — the player's light
+  const r = 45;
+  const halo = ctx.createRadialGradient(px, py, 8, px, py, r * 2);
+  halo.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  halo.addColorStop(0.15, 'rgba(230, 220, 255, 0.95)');
+  halo.addColorStop(0.4, 'rgba(179, 136, 255, 0.6)');
+  halo.addColorStop(0.7, 'rgba(124, 77, 255, 0.15)');
+  halo.addColorStop(1, 'rgba(124, 77, 255, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(px, py, r * 2, 0, Math.PI * 2); ctx.fill();
+  
+  // Core brilliance
+  const core = ctx.createRadialGradient(px, py, 0, px, py, 12);
+  core.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  core.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = core;
+  ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.fill();
+  
+  // Rotating ring
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(state.frame * 0.04);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#b388ff';
+  ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 1.2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 22, Math.PI * 1.4, Math.PI * 2.2); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawShield() {
+  if (state.shieldCooldown > 0) return;
+  const rx = state.input.right.x * W;
+  const ry = state.input.right.y * H;
+  if (rx < 0 || ry < 0) return;
+  
+  const r = 70;
+  ctx.save();
+  ctx.translate(rx, ry);
+  ctx.rotate(-state.frame * 0.02);
+  
+  // Outer bloom
+  const bloom = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 1.3);
+  bloom.addColorStop(0, 'rgba(100, 180, 255, 0)');
+  bloom.addColorStop(0.7, 'rgba(100, 180, 255, 0.15)');
+  bloom.addColorStop(1, 'rgba(100, 180, 255, 0)');
+  ctx.fillStyle = bloom;
+  ctx.beginPath(); ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2); ctx.fill();
+  
+  // Hexagonal shield
+  ctx.strokeStyle = 'rgba(180, 220, 255, 0.9)';
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 30;
+  ctx.shadowColor = '#64b4ff';
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI/2;
+    const x = Math.cos(a) * r;
+    const y = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
+  ctx.closePath();
+  ctx.stroke();
   
+  // Inner rune
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI/2;
+    const x = Math.cos(a) * r * 0.5;
+    const y = Math.sin(a) * r * 0.5;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawParticles() {
   for (const p of state.particles) {
-    ctx.globalAlpha = p.life;
+    ctx.globalAlpha = p.life * 0.9;
     ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 4 * p.life, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+function drawVignette() {
+  const vignette = ctx.createRadialGradient(W/2, H/2, Math.min(W, H) * 0.3, W/2, H/2, Math.max(W, H) * 0.75);
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ── Main render ─────────────────────────────────────────────────
+function draw() {
+  if (!state.running) return;
   
+  drawDivineBackground();
+  
+  // Draw entities
+  for (const e of state.entities) {
+    drawEntity(e);
+  }
+  
+  drawParticles();
+  drawPlayer();
+  drawShield();
+  drawVignette();
+  
+  // Awaiting pose overlay
   if (!state.cameraReady && !state.useFallback) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = 'rgba(5, 2, 8, 0.5)';
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#aaa';
+    ctx.fillStyle = '#b388ff';
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Awaiting pose... please show your body to the camera', W/2, H/2);
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#7c4dff';
+    ctx.fillText('Awaiting divine form... reveal thyself to the camera', W/2, H/2);
+    ctx.shadowBlur = 0;
   }
   
   requestAnimationFrame(draw);
@@ -393,7 +576,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// ── Start handler ───────────────────────────────────────────────
+// ── Start ───────────────────────────────────────────────────────
 document.getElementById('startBtn').addEventListener('click', async () => {
   try {
     const poseOk = await initPose();
