@@ -82,11 +82,12 @@
   <div class="panel">🛡️ SHIELD: <span id="shield">READY</span></div>
 </div>
 
-<script type="module">
-// ── MediaPipe Pose via CDN ──────────────────────────────────────
-import { Pose } from "https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js";
-import { Camera } from "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+<!-- MediaPipe via global scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
+<script>
+// ── Game state ──────────────────────────────────────────────────
 const video = document.getElementById('video');
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,7 +102,6 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// ── Game state ──────────────────────────────────────────────────
 const state = {
   running: false,
   score: 0,
@@ -133,7 +133,6 @@ function onPoseResults(results) {
   if (!state.running) return;
   if (results.poseLandmarks) {
     const lm = results.poseLandmarks;
-    // landmarks: 19 = left wrist, 20 = right wrist
     const lw = lm[15] || lm[19];
     const rw = lm[16] || lm[20];
     state.input.leftHand = { x: lw.x, y: lw.y, z: lw.z };
@@ -168,20 +167,16 @@ function update() {
   if (!state.running) return;
   state.frame++;
   
-  // Smooth input
   const il = state.input.left;
   const ir = state.input.right;
   
-  // Difficulty ramp
   state.difficulty = 1.0 + state.score / 200;
   
-  // Spawn
   if (state.frame - state.lastSpawn > Math.max(15, 60 - state.difficulty * 5)) {
     spawnEntity();
     state.lastSpawn = state.frame;
   }
   
-  // Update entities
   const playerY = state.input.left.y;
   const playerX = state.input.left.x;
   const rightY = state.input.right.y;
@@ -192,7 +187,6 @@ function update() {
     e.y += e.from === 'top' ? e.speed : -e.speed;
     e.pulse += 0.05;
     
-    // proximity to left hand
     const d = dist({ x: e.x, y: e.y }, { x: playerX, y: playerY });
     if (d < e.r + 0.15) {
       if (e.type === 'energy') {
@@ -225,23 +219,20 @@ function update() {
   
   if (state.shieldCooldown > 0) state.shieldCooldown--;
   
-  // Particles
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
     p.x += p.vx; p.y += p.vy; p.life -= 0.04;
     if (p.life <= 0) state.particles.splice(i, 1);
   }
   
-  // Game over check
   if (state.energy <= 0) {
-    alert(`GAME OVER — Score: ${state.score}`);
+    alert('GAME OVER — Score: ' + state.score);
     location.reload();
   }
   
-  // Update UI
   document.getElementById('energy').textContent = Math.round(state.energy);
   document.getElementById('score').textContent = state.score;
-  document.getElementById('shield').textContent = state.shieldCooldown > 0 ? `COOLDOWN ${Math.ceil(state.shieldCooldown/60)}s` : 'READY';
+  document.getElementById('shield').textContent = state.shieldCooldown > 0 ? 'COOLDOWN ' + Math.ceil(state.shieldCooldown / 60) + 's' : 'READY';
 }
 
 // ── Render loop ─────────────────────────────────────────────────
@@ -251,7 +242,6 @@ function draw() {
   ctx.fillStyle = 'rgba(10, 10, 15, 0.25)';
   ctx.fillRect(0, 0, W, H);
   
-  // Grid
   ctx.strokeStyle = 'rgba(100, 180, 255, 0.08)';
   ctx.lineWidth = 1;
   const gridSize = 40;
@@ -262,25 +252,23 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   }
   
-  // Entities
   for (const e of state.entities) {
     const x = e.x * W, y = e.y * H, r = e.r * Math.min(W, H);
     if (e.type === 'energy') {
       const pulse = Math.sin(e.pulse) * 0.3 + 0.7;
-      ctx.fillStyle = `rgba(0, 255, 200, ${pulse})`;
+      ctx.fillStyle = 'rgba(0, 255, 200, ' + pulse + ')';
       ctx.beginPath(); ctx.arc(x, y, r * 25 * pulse, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + pulse + ')';
       ctx.beginPath(); ctx.arc(x, y, r * 8, 0, Math.PI * 2); ctx.fill();
     } else {
       const pulse = Math.sin(e.pulse) * 0.2 + 0.8;
-      ctx.fillStyle = `rgba(255, 0, 80, ${pulse})`;
+      ctx.fillStyle = 'rgba(255, 0, 80, ' + pulse + ')';
       ctx.beginPath(); ctx.arc(x, y, r * 30, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#000';
       ctx.beginPath(); ctx.arc(x, y, r * 15, 0, Math.PI * 2); ctx.fill();
     }
   }
   
-  // Player orb (left hand)
   const px = state.input.left.x * W;
   const py = state.input.left.y * H;
   const glow = ctx.createRadialGradient(px, py, 5, px, py, 40);
@@ -291,7 +279,6 @@ function draw() {
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
   
-  // Shield wall (right hand)
   if (state.shieldCooldown <= 0) {
     const rx = state.input.right.x * W;
     const ry = state.input.right.y * H;
@@ -303,7 +290,6 @@ function draw() {
     ctx.shadowBlur = 0;
   }
   
-  // Particles
   for (const p of state.particles) {
     ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
@@ -311,7 +297,6 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   
-  // Mirror / camera hint
   if (!state.cameraReady) {
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(0, 0, W, H);
