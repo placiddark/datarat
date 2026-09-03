@@ -1,0 +1,61 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  DATARAT HUBSPOT — 717Δ707ΔΔ LIVE PORTAL EMBED
+  ═══════════════════════════════════════════════════════════════════
+  HOW TO ADD TO HUBSPOT:
+  1. Go to your HubSpot page/landing page editor
+  2. Add a "Custom HTML" module to the page
+  3. PASTE THIS ENTIRE FILE'S CONTENT into the HTML module
+  4. The portal loads automatically — no user action required
+  5. Set the portal URL below if you self-host, or use the default
+
+  PORTAL URL: Update HUBSPOT_PORTAL_URL if you deploy elsewhere
+  ═══════════════════════════════════════════════════════════════════
+-->
+<style>
+  .dr-hs-portal-wrap{width:100%;background:#05050a;border:1px solid #1a1a3a;border-radius:8px;overflow:hidden;font-family:"Courier New",monospace}
+  .dr-hs-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #1a1a3a;background:linear-gradient(180deg,#0a0a0e,#05050a)}
+  .dr-hs-title{font-size:10px;letter-spacing:4px;color:#d4af37}
+  .dr-hs-badge{font-size:8px;letter-spacing:2px;color:#5a5a7a;background:#0a0a14;border:1px solid #1a1a3a;padding:3px 8px;border-radius:10px}
+  .dr-hs-iframe-wrap{position:relative;width:100%;padding-bottom:62.5%;background:#05050a}
+  .dr-hs-iframe-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:block}
+  .dr-hs-footer{padding:5px 14px;border-top:1px solid #1a1a3a;font-size:8px;color:#3a3a5a;letter-spacing:2px;display:flex;justify-content:space-between}
+  .dr-hs-footer a{color:#5a5a7a;text-decoration:none}
+  .dr-hs-footer a:hover{color:#d4af37}
+</style>
+
+<div class="dr-hs-portal-wrap" id="dr-portal-container">
+  <div class="dr-hs-header">
+    <span class="dr-hs-title">⟐ 717Δ707ΔΔ LIVE</span>
+    <span class="dr-hs-badge">X-SPACE · PERCEIVISION · 0=2</span>
+  </div>
+
+  <div class="dr-hs-iframe-wrap">
+    <!--
+      PORTAL URL — Change this to your deployed URL.
+      Default: GitHub Pages (placiddark.github.io/datarat/portal/)
+      If self-hosting: point to your server URL.
+    -->
+    <iframe
+      id="dr-vr-frame"
+      src="https://placiddark.github.io/datarat/portal/"
+      title="717Δ707ΔΔ LIVE — WebXR VR Portal"
+      loading="lazy"
+      allow="xr-spatial-tracking; gyroscope; accelerometer; deviceorientation; fullscreen"
+      allowfullscreen
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-orientation-lock"
+    ></iframe>
+  </div>
+
+  <div class="dr-hs-footer">
+    <span>717Δ · 707ΔΔ · X-SPACE · PERCEIVISION · WEBXR</span>
+    <a href="https://placiddark.github.io/datarat/portal/" target="_blank" rel="noopener">OPEN FULL ⟐</a>
+  </div>
+</div>
+
+<!-- Fallback for no-JS environments -->
+<noscript>
+  <div style="background:#05050a;color:#d4af37;padding:20px;text-align:center;font-family:Courier New,monospace;font-size:12px;border:1px solid #1a1a3a;border-radius:6px;">
+    ⟐ 717Δ707ΔΔ LIVE — JavaScript required for the portal. Enable JS to enter.
+  </div>
+</noscript>

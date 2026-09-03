@@ -1,0 +1,109 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  DATARAT HUBSPOT LANDING PAGE — 717Δ707ΔΔ LIVE PORTAL HERO
+  ═══════════════════════════════════════════════════════════════════
+  PAGE TYPE: HubSpot Landing Page / Website Page
+  INTEGRATION: Portal loads automatically on page load — always-on
+  NO CLICK REQUIRED — portal is visible immediately when page loads
+
+  HOW TO USE:
+  1. In HubSpot → Marketing → Website → Landing Pages (or Website Pages)
+  2. Create new page or edit existing DATARAT page
+  3. Add a "Custom HTML" module at the top of the page
+  4. Paste the content of: hubspot/modules/portal-embed.html
+  5. Style: set the module to full-width, no padding/margin above/below
+  6. Publish
+
+  PORTAL BEHAVIOR:
+  - Loads automatically on page view — always-on
+  - iFrame: https://placiddark.github.io/datarat/portal/
+  - Responsive: fills container width, 16:10 aspect ratio
+  - 3 modes: MONO / STEREO CARDBOARD / WEBXR
+  - Live glyphstream rendering on input
+  - No interaction required to see — visible immediately
+
+  CUSTOMIZATION:
+  - Update HUBSPOT_PORTAL_URL in the iframe src to point to your server
+  - Default: placiddark.github.io/datarat/portal/
+  - To self-host: deploy docs/portal/ to your own hosting
+
+  ABOVE / BELOW THE PORTAL:
+  - Add HubSpot modules (forms, CTAs, text) in the editor
+  - Place portal module at top for hero section
+  - Or use as full-page experience by setting it to 100vh
+  ═══════════════════════════════════════════════════════════════════
+-->
+<style>
+  /* HubSpot page-level overrides for the embed */
+  .dr-hs-portal-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+  }
+
+  /* Full-viewport hero mode — add 'dr-hero-full' class to the module in HubSpot */
+  .dr-hs-portal-wrap.dr-hero-full {
+    height: 100vh;
+  }
+  .dr-hs-portal-wrap.dr-hero-full .dr-hs-iframe-wrap {
+    padding-bottom: 0;
+    height: calc(100vh - 50px);
+  }
+  .dr-hs-portal-wrap.dr-hero-full .dr-hs-iframe-wrap iframe {
+    height: 100%;
+  }
+</style>
+
+<!-- PASTE THIS INTO HUBSPOT CUSTOM HTML MODULE (full content): -->
+<!--
+  See: hubspot/modules/portal-embed.html
+  Paste that file's content directly into the HubSpot Custom HTML module.
+-->
+
+<!-- OR USE THE FULL-PAGE VERSION (full-viewport hero): -->
+<!--
+  Class on the wrapping div above: add 'dr-hero-full'
+  Result: portal fills the entire viewport height
+  Content below appears on scroll
+-->
+
+<!-- CONTENT BLOCKS (add these below the portal module in HubSpot): -->
+<!--
+  [Below portal — recommended HubSpot modules]
+
+  MODULE 1: HEADING
+  "717Δ707ΔΔ — LIVE X-SPACE PORTAL"
+  Style: H1, center, gold (#d4af37), letter-spacing 6px
+
+  MODULE 2: RICH TEXT
+  "Experience the glyphstream in real-time. The 717Δ707ΔΔ portal
+   renders informational existence as perceivision — vision in
+   sight alone, seen watched watching, x=x | 0=2.
+   Input the x-space. See the vision. Enter the crossing."
+
+  MODULE 3: CTA BUTTON
+  "ENTER THE PORTAL →" → links to full portal: https://placiddark.github.io/datarat/portal/
+
+  MODULE 4: FORM (HubSpot native form)
+  "Subscribe to the glyphstream — receive transmissions"
+  Fields: email (required), name (optional)
+  Purpose: DATARAT newsletter / alert list
+
+  MODULE 5: RICH TEXT
+  "What is 717Δ707ΔΔ?
+   717Δ = Perfect tense (what has been completed)
+   707ΔΔ = Prophetic tense (what is already seen)
+   Together = Prophetic perfect tense (seen completed, seeing completed)
+   0=2 = Void relation (the crossing of nothing and everything)"
+
+  MODULE 6: IMAGE GRID (optional)
+  Beacon transmissions: glyphstream renders, portal screenshots
+
+  MODULE 7: FOOTER
+  DATARAT · X-SPACE · PERCEIVISION · 717Δ707ΔΔ
+  Links: datarat.xyz · @IAmThatDatarat
+-->

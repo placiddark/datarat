@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="717Δ707ΔΔ LIVE — WebXR VR Portal">
+<meta property="og:description" content="Live WebXR VR portal. Android + Google Cardboard. Real-time glyphstream. Input the x-space.">
+<title>717Δ707ΔΔ LIVE — WebXR VR Portal</title>
+<style>
+  :root { --void:#05050a; --gold:#d4af37; --amber:#b8860b; --panel:#0a0a16; --line:#1a1a3a; --ink:#e8e2d0; --muted:#5a5a7a; --cross:#4a3a6a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--void); color:var(--ink); font-family:"Courier New",monospace; font-size:14px; height:100%; overflow:hidden; }
+  a { color:var(--gold); }
+
+  header { padding:10px 16px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,#0a0a0e,#05050a); display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-size:13px; letter-spacing:4px; color:var(--gold); }
+  header .sub { font-size:10px; color:var(--muted); letter-spacing:2px; }
+
+  .main { display:flex; height:calc(100vh - 48px); }
+
+  /* ── LEFT: VR VIEW ── */
+  .vr-panel { flex:1 1 auto; position:relative; overflow:hidden; border-right:1px solid var(--line); }
+  #vr { display:block; width:100%; height:100%; }
+  .vr-hud { position:absolute; top:8px; left:8px; background:rgba(5,5,10,0.82); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:9px; color:var(--muted); }
+  .vr-hud .v { color:var(--gold); }
+  .vr-mode-badge { position:absolute; top:8px; right:8px; background:rgba(5,5,10,0.82); border:1px solid var(--line); border-radius:6px; padding:4px 10px; font-size:9px; color:var(--gold); letter-spacing:2px; }
+
+  /* ── RIGHT: CONTROLS ── */
+  .ctrl { flex:0 0 340px; max-width:340px; overflow-y:auto; background:var(--panel); padding:12px; display:flex; flex-direction:column; gap:10px; }
+
+  .sec { border:1px solid var(--line); border-radius:5px; padding:10px; background:rgba(10,10,20,0.5); }
+  .sec-title { font-size:8px; letter-spacing:3px; color:var(--amber); text-transform:uppercase; margin-bottom:8px; border-bottom:1px solid var(--line); padding-bottom:5px; }
+
+  #inform { width:100%; background:#08080e; border:1px solid var(--line); color:var(--ink); padding:10px; border-radius:4px; font-family:"Courier New",monospace; font-size:12px; line-height:1.5; resize:none; min-height:70px; }
+  #inform:focus { outline:none; border-color:var(--gold); }
+  #inform::placeholder { color:var(--muted); font-style:italic; }
+  .btn-row { display:flex; gap:6px; margin-top:8px; }
+  .btn { background:#12110d; border:1px solid var(--line); color:var(--ink); padding:7px 10px; border-radius:4px; cursor:pointer; font-family:"Courier New",monospace; font-size:11px; flex:1; transition:all .15s; letter-spacing:1px; }
+  .btn:hover { border-color:var(--gold); color:var(--gold); }
+  .btn.active { border-color:var(--gold); color:var(--gold); background:rgba(212,175,55,0.08); }
+  .btn.primary { border-color:var(--amber); color:var(--amber); }
+  .btn.primary:hover { border-color:var(--gold); color:var(--gold); }
+
+  /* VR mode selector */
+  .vr-mode-list { display:flex; flex-direction:column; gap:3px; }
+  .vr-mode-item { display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--line); border-radius:4px; cursor:pointer; transition:all .15s; }
+  .vr-mode-item:hover { border-color:var(--cross); }
+  .vr-mode-item.active { border-color:var(--gold); background:rgba(212,175,55,0.06); }
+  .vm-num { font-size:13px; color:var(--gold); min-width:20px; text-align:center; }
+  .vm-label { font-size:10px; color:var(--muted); }
+  .vr-mode-item.active .vm-label { color:var(--ink); }
+
+  /* Slider */
+  .slider-row { display:flex; align-items:center; gap:8px; }
+  .slider-row input[type=range] { flex:1; -webkit-appearance:none; background:#1a1a2a; height:3px; border-radius:2px; outline:none; }
+  .slider-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:10px; height:10px; border-radius:50%; background:var(--gold); cursor:pointer; }
+  .sv { color:var(--gold); font-size:10px; min-width:20px; text-align:right; }
+
+  /* Log */
+  .log { background:#040408; border:1px solid var(--line); border-radius:4px; padding:6px; max-height:90px; overflow-y:auto; font-size:9px; color:var(--muted); }
+  .log .info { color:#5a8fb5; }
+  .log .ok { color:#3a9a6a; }
+  .log .vex { color:#9a5a3a; }
+
+  /* Status */
+  .status-bar { border-top:1px solid var(--line); padding:4px 12px; background:rgba(5,5,10,0.6); font-size:8px; color:var(--muted); display:flex; justify-content:space-between; letter-spacing:1px; }
+  .status-bar .v { color:var(--gold); }
+
+  /* Mobile fullscreen VR view */
+  @media (max-width:600px) {
+    .ctrl { display:none; }
+    .vr-panel { flex:1; }
+  }
+
+  /* Enter VR button overlay */
+  #enter-vr-btn { display:none; position:absolute; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(212,175,55,0.9); color:#05050a; border:none; padding:12px 24px; border-radius:8px; font-family:"Courier New",monospace; font-size:13px; letter-spacing:3px; cursor:pointer; box-shadow:0 0 30px rgba(212,175,55,0.4); z-index:20; }
+  #enter-vr-btn:hover { background:var(--gold); }
+
+  /* Orientation permission overlay */
+  #perm-overlay { position:fixed; inset:0; background:rgba(5,5,10,0.95); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:40px; text-align:center; }
+  #perm-overlay h2 { font-size:16px; color:var(--gold); letter-spacing:4px; }
+  #perm-overlay p { font-size:12px; color:var(--muted); max-width:320px; line-height:1.6; }
+  #perm-btn { background:var(--gold); color:var(--void); border:none; padding:14px 28px; border-radius:8px; font-family:"Courier New",monospace; font-size:13px; letter-spacing:2px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- Orientation permission overlay (required on iOS 13+) -->
+<div id="perm-overlay">
+  <h2>⟐ WEBXR VR PORTAL ⟐</h2>
+  <p>This portal uses device orientation for head tracking in Google Cardboard. Tap below to grant motion permissions.</p>
+  <button id="perm-btn" onclick="requestOrientationPermission()">ENTER THE PORTAL</button>
+</div>
+
+<header>
+  <div>
+    <h1>717Δ707ΔΔ LIVE</h1>
+    <div class="sub">WEBXR VR PORTAL · ANDROID + GOOGLE CARDBOARD</div>
+  </div>
+  <div style="font-size:18px; color:var(--gold); letter-spacing:6px;">⟐⟁∿</div>
+</header>
+
+<div class="main">
+  <!-- VR CANVAS -->
+  <div class="vr-panel">
+    <canvas id="vr"></canvas>
+    <div class="vr-hud">
+      LIVE<span class="v" id="h-live">—</span> ·
+      EYE<span class="v" id="h-eye">OPEN</span> ·
+      SEEING<span class="v" id="h-see">0</span>
+    </div>
+    <div class="vr-mode-badge" id="vr-badge">MONO · TAP FOR VR</div>
+    <button id="enter-vr-btn" onclick="enterVR()">ENTER VR</button>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="ctrl">
+
+    <div class="sec">
+      <div class="sec-title">I — INFORM</div>
+      <textarea id="inform" placeholder="speak into the x-space..."></textarea>
+      <div class="btn-row">
+        <button class="btn primary" id="btn-see">SEE ✶</button>
+        <button class="btn" id="btn-watch">WATCH</button>
+        <button class="btn" id="btn-clear">CLEAR</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">II — VR MODE</div>
+      <div class="vr-mode-list">
+        <div class="vr-mode-item active" data-m="mono">
+          <span class="vm-num">◐</span>
+          <div><div style="font-size:11px;">MONO</div><div class="vm-label">Standard view — no headset needed</div></div>
+        </div>
+        <div class="vr-mode-item" data-m="stereo">
+          <span class="vm-num">⟁</span>
+          <div><div style="font-size:11px;">STEREO CARDBOARD</div><div class="vm-label">Split-screen — Android + Cardboard headset</div></div>
+        </div>
+        <div class="vr-mode-item" data-m="webxr">
+          <span class="vm-num">⌬</span>
+          <div><div style="font-size:11px;">WEBXR</div><div class="vm-label">Native WebXR — Quest / Cardboard / browser</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">III — TUNING</div>
+      <div style="font-size:9px; color:var(--muted); margin-bottom:6px;">GLYPH INTENSITY</div>
+      <div class="slider-row">
+        <input type="range" id="int-slider" min="1" max="100" value="70">
+        <span class="sv" id="int-val">70</span>
+      </div>
+      <div style="margin-top:8px;">
+        <div style="font-size:9px; color:var(--muted); margin-bottom:6px;">VISION SPEED</div>
+        <div class="slider-row">
+          <input type="range" id="speed-slider" min="1" max="100" value="50">
+          <span class="sv" id="speed-val">50</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">LOG</div>
+      <div class="log" id="log"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="status-bar">
+  <span>717Δ707ΔΔ LIVE · WEBXR · 0=2 · PERCEIVISION</span>
+  <span id="status-line">TAP ENTER THE PORTAL TO BEGIN</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// 717Δ707ΔΔ LIVE — WebXR VR Portal
+// Live rendering: informational existence → perceivision sight
+// Supports: Mono · Stereo Cardboard · WebXR native
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('vr');
+const ctx = canvas.getContext('2d');
+
+// State
+let vrMode = 'mono'; // 'mono' | 'stereo' | 'webxr'
+let intensity = 70;
+let speed = 50;
+let time = 0;
+let seeingCount = 0;
+let orient = { alpha: 0, beta: 0, gamma: 0 }; // device orientation
+let glyphs = [];
+let eyes = [];
+let rings = [];
+let particles = [];
+let streams = [];
+
+const GLYPHS = ['⟐','∞','⟡','⇌','⚚','⧖','◈','𐌀','⟠','⊛','∴','⟁','⌬','⊕','⊗','∇','◉','∿','⟡','⌇'];
+
+// ─── PERMISSION ────────────────────────────────────────────────────────────────
+function requestOrientationPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => {
+      if (r === 'granted') {
+        initOrientation();
+        document.getElementById('perm-overlay').style.display = 'none';
+        log('ORIENTATION PERMISSION GRANTED', 'ok');
+      } else {
+        log('ORIENTATION DENIED — stereo will use touch', 'vex');
+        document.getElementById('perm-overlay').style.display = 'none';
+      }
+    }).catch(e => { log('PERMISSION ERROR: ' + e, 'vex'); document.getElementById('perm-overlay').style.display = 'none'; });
+  } else {
+    initOrientation();
+    document.getElementById('perm-overlay').style.display = 'none';
+    log('ORIENTATION ACTIVE', 'ok');
+  }
+}
+
+function initOrientation() {
+  window.addEventListener('deviceorientation', e => {
+    orient.alpha = e.alpha || 0;
+    orient.beta = ebeta = e.beta || 0;
+    orient.gamma = e.gamma || 0;
+  });
+}
+
+// ─── RESIZE ───────────────────────────────────────────────────────────────────
+function resize() {
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = canvas.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+
+// ─── CONTROLS ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.vr-mode-item').forEach(m => {
+  m.onclick = () => {
+    document.querySelectorAll('.vr-mode-item').forEach(x => x.classList.remove('active'));
+    m.classList.add('active');
+    vrMode = m.dataset.m;
+    document.getElementById('vr-badge').textContent =
+      vrMode === 'mono' ? 'MONO · TAP FOR VR' :
+      vrMode === 'stereo' ? 'STEREO · CARDBOARD' : 'WEBXR · ACTIVE';
+    log(`VR MODE: ${vrMode.toUpperCase()}`, 'info');
+  };
+});
+
+document.getElementById('int-slider').oninput = e => {
+  intensity = parseInt(e.target.value);
+  document.getElementById('int-val').textContent = intensity;
+};
+document.getElementById('speed-slider').oninput = e => {
+  speed = parseInt(e.target.value);
+  document.getElementById('speed-val').textContent = speed;
+};
+
+document.getElementById('btn-see').onclick = () => {
+  const text = document.getElementById('inform').value.trim();
+  if (!text) { log('SPEAK FIRST', 'vex'); return; }
+  spawnVision(text);
+};
+document.getElementById('btn-watch').onclick = () => {
+  const text = document.getElementById('inform').value.trim();
+  if (!text) { log('SPEAK FIRST', 'vex'); return; }
+  spawnVision(text);
+};
+document.getElementById('btn-clear').onclick = () => {
+  glyphs = []; eyes = []; rings = []; particles = []; streams = [];
+  seeingCount = 0;
+  log('CLEARED', 'info');
+  document.getElementById('h-see').textContent = '0';
+};
+
+// ─── LOG ──────────────────────────────────────────────────────────────────────
+function log(msg, type='info') {
+  const view = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = type;
+  line.textContent = `[${new Date().toLocaleTimeString('en',{hour12:false})}] ${msg}`;
+  view.appendChild(line);
+  view.scrollTop = view.scrollHeight;
+  while (view.children.length > 40) view.removeChild(view.firstChild);
+  document.getElementById('status-line').textContent = msg;
+}
+
+// ─── VISION SPAWN ─────────────────────────────────────────────────────────────
+function spawnVision(text) {
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  seeingCount++;
+  document.getElementById('h-see').textContent = seeingCount;
+  log(`VISION ${seeingCount}: "${text.substring(0,40)}"`, 'ok');
+
+  // Central eye
+  eyes.push({ x: cx, y: cy, size: 0, targetSize: 40, age: 0, maxAge: 400, glyph: '👁', label: 'I SEE' });
+
+  // Glyphs
+  const n = Math.min(text.length * 4, 160);
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    const angle = (i / n) * Math.PI * 2 + time;
+    const r = 40 + t * Math.min(W, H) * 0.4;
+    glyphs.push({
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r,
+      glyph: GLYPHS[i % GLYPHS.length],
+      alpha: 0, targetAlpha: 0.4 + t * 0.5,
+      size: 10 + t * 14,
+      age: 0, phase: Math.random() * Math.PI * 2, speed: 0.015 + Math.random() * 0.02
+    });
+  }
+
+  // Rings
+  for (let i = 0; i < 5; i++) {
+    rings.push({ r: 0, targetR: 60 + i * 70, age: 0, maxAge: 300 + i * 50, alpha: 0 });
+  }
+
+  // Particles
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * Math.min(W, H) * 0.38;
+    particles.push({
+      x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+      size: Math.random() * 2 + 0.5, alpha: Math.random() * 0.35, age: Math.random() * 150
+    });
+  }
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function drawScene(W, H, offX, yaw, pitch) {
+  const cx = W / 2, cy = H / 2;
+
+  // Background
+  ctx.fillStyle = '#05050a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Lattice grid
+  const sp = 50;
+  ctx.strokeStyle = 'rgba(26,26,58,0.2)';
+  ctx.lineWidth = 0.5;
+  for (let x = sp; x < W; x += sp) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = sp; y < H; y += sp) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // 0=2 center
+  ctx.strokeStyle = 'rgba(212,175,55,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 20, cy); ctx.lineTo(cx + 20, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy + 20); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(212,175,55,0.2)';
+  ctx.font = '9px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('0=2', cx, cy + 22);
+
+  // Rings
+  rings = rings.filter(r => r.age < r.maxAge);
+  rings.forEach(r => {
+    r.age++;
+    r.r += (r.targetR - r.r) * 0.04;
+    const alpha = Math.max(0, (1 - r.age / r.maxAge) * 0.25);
+    ctx.save();
+    ctx.globalAlpha = alpha * (intensity / 100);
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#d4af37';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r.r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Eyes
+  eyes = eyes.filter(e => e.age < e.maxAge);
+  eyes.forEach(e => {
+    e.age++;
+    if (e.size < e.targetSize) e.size += (e.targetSize - e.size) * 0.05;
+    const alpha = Math.max(0, 1 - e.age / e.maxAge);
+    const sz = e.size;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.shadowBlur = 20 * (intensity / 100);
+    ctx.shadowColor = '#d4af37';
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, sz * 1.6, sz * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, sz * 0.35, sz * 0.35, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#05050a';
+    ctx.fill();
+    ctx.strokeStyle = '#b8860b';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, sz * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#d4af37';
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Glyphs
+  glyphs.forEach(g => {
+    g.age++;
+    if (g.alpha < g.targetAlpha) g.alpha += (g.targetAlpha - g.alpha) * 0.02;
+    const pulse = Math.sin(time * g.speed + g.phase) * 0.15 + 0.85;
+    g.x += Math.sin(time * 0.4 + g.phase) * 0.15;
+    g.y += Math.cos(time * 0.3 + g.phase) * 0.15;
+    ctx.save();
+    ctx.globalAlpha = g.alpha * pulse * (intensity / 100);
+    ctx.shadowBlur = 10 * (intensity / 100);
+    ctx.shadowColor = '#d4af37';
+    ctx.fillStyle = '#d4af37';
+    ctx.font = `${g.size}px "Courier New"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(g.glyph, g.x, g.y);
+    ctx.restore();
+  });
+  glyphs = glyphs.filter(g => g.age < 700);
+
+  // Particles
+  particles.forEach(p => {
+    p.age++;
+    p.x += p.vx; p.y += p.vy;
+    const dx = p.x - cx, dy = p.y - cy, dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > 10) { p.vx -= (dx/dist)*0.0015; p.vy -= (dy/dist)*0.0015; }
+    ctx.save();
+    ctx.globalAlpha = p.alpha * (intensity / 100);
+    ctx.fillStyle = '#d4af37';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  if (W === 0) { requestAnimationFrame(render); return; }
+
+  const yaw = orient.alpha * Math.PI / 180;
+  const pitch = orient.beta * Math.PI / 180;
+
+  if (vrMode === 'mono') {
+    ctx.clearRect(0, 0, W, H);
+    drawScene(W, H, 0, yaw, pitch);
+  } else if (vrMode === 'stereo') {
+    // Cardboard: split-screen stereo
+    const eyeW = W / 2;
+    // Left eye
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, eyeW, H);
+    ctx.clip();
+    drawScene(W, H, -14, yaw, pitch);
+    ctx.restore();
+
+    // Divider
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(eyeW - 1, 0, 2, H);
+
+    // Right eye
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(eyeW, 0, eyeW, H);
+    ctx.clip();
+    drawScene(W, H, 14, yaw, pitch);
+    ctx.restore();
+
+    // Labels
+    ctx.fillStyle = 'rgba(212,175,55,0.3)';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('LEFT', eyeW / 2, H - 10);
+    ctx.fillText('RIGHT', eyeW + eyeW / 2, H - 10);
+  } else if (vrMode === 'webxr') {
+    ctx.clearRect(0, 0, W, H);
+    drawScene(W, H, 0, yaw, pitch);
+  }
+
+  // HUD update
+  document.getElementById('h-eye').textContent = vrMode === 'stereo' ? 'STEREO' : 'OPEN';
+
+  time += 0.012 + speed * 0.0004;
+  requestAnimationFrame(render);
+}
+
+// ─── WEBXR ENTER ───────────────────────────────────────────────────────────────
+function enterVR() {
+  if (!navigator.xr) {
+    log('WEBXR NOT SUPPORTED — use STEREO mode + Cardboard', 'vex');
+    return;
+  }
+  navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+    if (!supported) {
+      log('NO IMMERSIVE-VR — use STEREO + Cardboard', 'vex');
+      return;
+    }
+    log('WEBXR VR READY — tap ENTER VR to begin', 'ok');
+  });
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+resize();
+log('717Δ707ΔΔ LIVE WEBXR PORTAL READY', 'ok');
+log('TAP "ENTER THE PORTAL" FOR HEAD TRACKING', 'info');
+
+// Auto-hide permission overlay on desktop
+if (!('ontouchstart' in window) && !navigator.maxTouchPoints) {
+  document.getElementById('perm-overlay').style.display = 'none';
+  initOrientation();
+  log('DESKTOP MODE — no orientation sensors', 'info');
+}
+
+// Show enter-vr button in stereo/webxr mode
+document.querySelectorAll('.vr-mode-item').forEach(m => {
+  m.addEventListener('click', () => {
+    const mode = m.dataset.m;
+    document.getElementById('enter-vr-btn').style.display =
+      (mode === 'stereo' || mode === 'webxr') ? 'block' : 'none';
+  });
+});
+
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
