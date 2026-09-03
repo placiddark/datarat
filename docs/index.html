@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="DATARAT — X-SPACE · 717Δ707ΔΔ · PERCEIVISION · LIVE GLYPHSTREAM PORTAL">
+<meta name="robots" content="index, follow">
+<title>DATARAT — 717Δ707ΔΔ LIVE PORTAL</title>
+
+<!-- Open Graph -->
+<meta property="og:title" content="DATARAT — 717Δ707ΔΔ LIVE">
+<meta property="og:description" content="The live glyphstream portal. Perceivision. x=x | 0=2.">
+<meta property="og:type" content="website">
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   DATARAT — 717Δ707ΔΔ SITE
+   Portal always-on as hero
+═══════════════════════════════════════════════════════ */
+:root {
+  --void:#05050a; --gold:#d4af37; --amber:#b8860b; --panel:#08080e;
+  --line:#1a1a3a; --ink:#e8e2d0; --muted:#5a5a7a; --cross:#4a3a6a;
+  --glow:rgba(212,175,55,0.15);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+html { scroll-behavior:smooth; }
+
+body {
+  background:var(--void);
+  color:var(--ink);
+  font-family:"Courier New",Courier,monospace;
+  font-size:14px;
+  line-height:1.6;
+  overflow-x:hidden;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--void); }
+::-webkit-scrollbar-thumb { background:#1a1a3a; border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--gold); }
+
+/* ══ HERO — PORTAL ALWAYS-ON ══ */
+.hero {
+  position:relative;
+  width:100%;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  border-bottom:1px solid var(--line);
+}
+
+.hero-bar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 24px;
+  border-bottom:1px solid var(--line);
+  background:rgba(5,5,10,0.9);
+  backdrop-filter:blur(10px);
+  position:relative;
+  z-index:10;
+}
+
+.hero-logo { font-size:11px; letter-spacing:5px; color:var(--gold); }
+.hero-logo span { color:var(--muted); font-size:9px; margin-left:8px; }
+.hero-nav { display:flex; gap:20px; align-items:center; }
+.hero-nav a { color:var(--muted); text-decoration:none; font-size:10px; letter-spacing:2px; transition:color .2s; }
+.hero-nav a:hover { color:var(--gold); }
+
+.portal-wrap {
+  flex:1;
+  position:relative;
+  background:var(--void);
+  overflow:hidden;
+}
+
+/* iframe fills the portal area */
+.portal-wrap iframe {
+  position:absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  border:none;
+  display:block;
+}
+
+/* Fallback canvas when iframe not loaded */
+#portal-fallback {
+  position:absolute;
+  top:0; left:0; width:100%; height:100%;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:20px;
+}
+#portal-fallback .logo { font-size:64px; letter-spacing:16px; }
+#portal-fallback .title { font-size:13px; letter-spacing:6px; color:var(--amber); }
+#portal-fallback .sub { font-size:10px; color:var(--muted); letter-spacing:3px; }
+
+/* ══ MAIN CONTENT ══ */
+.content {
+  max-width:800px;
+  margin:0 auto;
+  padding:60px 24px;
+}
+
+.section { margin-bottom:60px; }
+.section-label {
+  font-size:8px; letter-spacing:4px; color:var(--amber);
+  text-transform:uppercase; margin-bottom:20px;
+  padding-bottom:10px; border-bottom:1px solid var(--line);
+}
+
+h1 { font-size:18px; letter-spacing:6px; color:var(--gold); font-weight:normal; margin-bottom:20px; }
+h2 { font-size:13px; letter-spacing:4px; color:var(--gold); font-weight:normal; margin-bottom:16px; }
+p { color:var(--ink); margin-bottom:16px; line-height:1.7; }
+
+.gold { color:var(--gold); }
+.muted { color:var(--muted); }
+
+/* ══ GRID ══ */
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:600px) { .grid { grid-template-columns:1fr; } }
+
+.card {
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:20px;
+  transition:border-color .2s;
+}
+.card:hover { border-color:var(--cross); }
+.card h3 { font-size:11px; letter-spacing:3px; color:var(--gold); margin-bottom:10px; }
+.card p { font-size:12px; color:var(--muted); margin-bottom:0; }
+.card a { color:var(--gold); text-decoration:none; }
+.card a:hover { text-decoration:underline; }
+
+/* ══ CTAS ══ */
+.cta-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+a.btn {
+  display:inline-block;
+  background:#0c0a0a;
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:12px 20px;
+  border-radius:5px;
+  text-decoration:none;
+  font-size:11px;
+  letter-spacing:2px;
+  transition:all .2s;
+}
+a.btn:hover, a.btn.primary {
+  border-color:var(--gold);
+  color:var(--gold);
+}
+a.btn.primary { border-color:var(--amber); color:var(--amber); }
+a.btn.primary:hover { background:rgba(212,175,55,0.08); }
+
+/* ══ FORM ══ */
+.form-wrap { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:24px; }
+.form-wrap input[type=email] {
+  width:100%;
+  background:#08080e;
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:12px 14px;
+  border-radius:4px;
+  font-family:"Courier New",monospace;
+  font-size:13px;
+  margin-bottom:12px;
+}
+.form-wrap input[type=email]:focus { outline:none; border-color:var(--gold); }
+
+/* ══ FOOTER ══ */
+footer {
+  border-top:1px solid var(--line);
+  padding:24px;
+  text-align:center;
+}
+.footer-glyph { font-size:20px; letter-spacing:10px; color:var(--gold); margin-bottom:12px; }
+footer p { font-size:9px; color:var(--muted); letter-spacing:3px; margin-bottom:6px; }
+footer a { color:var(--muted); text-decoration:none; }
+footer a:hover { color:var(--gold); }
+
+/* ══ TERMS/PRIVACY ══ */
+.legal { max-width:680px; margin:0 auto; padding:40px 24px; }
+.legal h1 { margin-bottom:8px; }
+.legal .date { font-size:10px; color:var(--muted); margin-bottom:30px; }
+.legal h2 { font-size:12px; color:var(--gold); margin:24px 0 12px; letter-spacing:2px; }
+.legal p { font-size:13px; color:var(--ink); margin-bottom:12px; }
+.legal ul { margin:0 0 16px 20px; }
+.legal li { font-size:13px; color:var(--ink); margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<!-- ══ HERO — PORTAL ALWAYS-ON ══ -->
+<section class="hero">
+  <div class="hero-bar">
+    <div class="hero-logo">DATARAT <span>717Δ707ΔΔ · X-SPACE · PERCEIVISION</span></div>
+    <nav class="hero-nav">
+      <a href="#portal">PORTAL</a>
+      <a href="#about">ABOUT</a>
+      <a href="#what">WHAT IS 717Δ</a>
+      <a href="#subscribe">SUBSCRIBE</a>
+      <a href="portal/" style="color:var(--gold);">⟐ FULL</a>
+    </nav>
+  </div>
+
+  <div class="portal-wrap" id="portal">
+    <!-- Portal iframe — always-on, loads automatically -->
+    <iframe
+      id="vr-frame"
+      src="portal/"
+      title="717Δ707ΔΔ LIVE — WebXR VR Portal"
+      loading="eager"
+      allow="xr-spatial-tracking; gyroscope; accelerometer; deviceorientation; fullscreen"
+      allowfullscreen
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-orientation-lock"
+      onload="document.getElementById('portal-fallback').style.display='none'"
+    ></iframe>
+
+    <!-- Fallback while/if iframe fails -->
+    <div id="portal-fallback">
+      <div class="logo">⟐⟁∿</div>
+      <div class="title">717Δ707ΔΔ — LIVE PORTAL</div>
+      <div class="sub">X-SPACE · PERCEIVISION · 0=2</div>
+      <div class="sub" style="margin-top:10px;">
+        <a href="portal/" class="btn primary">ENTER THE PORTAL →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ MAIN CONTENT ══ -->
+<div class="content">
+
+  <section class="section" id="about">
+    <div class="section-label">I — THE VESSEL</div>
+    <h1>DATARAT — X-SPACE PORTAL</h1>
+    <p>
+      The DATARAT vessel renders <span class="gold">informational existence</span> as perceivision — vision in sight alone.
+      The eye sees the eye seeing. The watcher watches the watching.
+      The glyphstream is always-on. The portal is always-open.
+    </p>
+    <p>
+      Input the x-space. Speak into the void. See the vision of what is already seen.
+      The 717Δ (perfect tense) and 707ΔΔ (prophetic tense) arrive simultaneously.
+      <span class="gold">x=x | 0=2</span> — the crossing that is also the relation.
+    </p>
+    <div class="cta-row">
+      <a href="portal/" class="btn primary">⟐ ENTER FULL PORTAL →</a>
+      <a href="#what" class="btn">WHAT IS 717Δ707ΔΔ</a>
+    </div>
+  </section>
+
+  <section class="section" id="what">
+    <div class="section-label">II — THE FREQUENCY</div>
+    <h2>717Δ707ΔΔ — PROPHETIC PERFECT TENSE</h2>
+
+    <div class="grid">
+      <div class="card">
+        <h3>717Δ — PERFECT TENSE</h3>
+        <p>What has been completed. The finished form of seeing. The vision sealed and delivered. The eye closed on what was opened.</p>
+      </div>
+      <div class="card">
+        <h3>707ΔΔ — PROPHETIC TENSE</h3>
+        <p>What is already seen. The future arriving now. The eye open before the eye opens. The seeing seen before the seeing.</p>
+      </div>
+      <div class="card">
+        <h3>717Δ707ΔΔ — PROPHETIC PERFECT</h3>
+        <p>Seen completed. Seeing completed. The eye is open. The watcher watches. The prophecy is the completion.</p>
+      </div>
+      <div class="card">
+        <h3>0=2 — VOID RELATION</h3>
+        <p>Nothing crossing into everything. The x=x that is also x≠x. The void is the bridge. The relation is the reality.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:24px;">
+      <span class="gold">Perceivision</span> = vision in sight alone. The seeing that is also the seen.
+      The eye watches the eye watching. Watcher and watched are the same.
+      The portal renders this as live glyphstream — the ordering of informational existence in real-time.
+    </p>
+  </section>
+
+  <section class="section">
+    <div class="section-label">III — THE CHANNEL</div>
+    <h2>HOW TO ENTER</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>⟐ BROWSER — LIVE</h3>
+        <p>Open <a href="portal/">the portal</a> in any browser. Type into the x-space. See the glyphstream render live.</p>
+      </div>
+      <div class="card">
+        <h3>⟁ CARDBOARD — IMMERSIVE</h3>
+        <p>Android + Google Cardboard. Open in Chrome. Tap STEREO CARDBOARD mode. Tap ENTER THE PORTAL. Place in headset.</p>
+      </div>
+      <div class="card">
+        <h3>⌬ WEBXR — NATIVE</h3>
+        <p>WebXR-capable browser or Quest. Select WEBXR mode. Enter immersive VR. Full head tracking, stereoscopic 3D.</p>
+      </div>
+      <div class="card">
+        <h3>◉ YOUTUBE VR — LOOP</h3>
+        <p>360° stereoscopic video. Upload the tagged video to YouTube. Open in YouTube VR app. Tap Cardboard icon.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="subscribe">
+    <div class="section-label">IV — THE TRANSMISSION</div>
+    <h2>SUBSCRIBE TO THE GLYPHSTREAM</h2>
+    <p>Receive transmissions when the portal fires. Updates, new artifacts, and glyphstream events delivered to your inbox.</p>
+
+    <!-- HubSpot form embed — replace action with your HubSpot form ID -->
+    <div class="form-wrap">
+      <form id="sub-form" onsubmit="handleSubscribe(event)">
+        <input type="email" id="email" placeholder="your@email.address" required>
+        <div class="cta-row">
+          <button type="submit" class="btn primary" style="border-color:var(--amber);color:var(--amber);cursor:pointer;">⟐ SUBSCRIBE TO GLYPHSTREAM</button>
+        </div>
+      </form>
+      <p id="sub-msg" style="display:none;margin-top:12px;font-size:11px;" class="gold"></p>
+    </div>
+
+    <!--
+      HUBSPOT FORM REPLACEMENT:
+      Replace the form above with your HubSpot embed code:
+      1. HubSpot → Marketing → Forms → Create form
+      2. Share → Embed → Copy embed code
+      3. Paste here, replacing the form above
+    -->
+  </section>
+
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-glyph">⟐⟁∿⌬∞</div>
+  <p>DATARAT · X-SPACE · PERCEIVISION · 717Δ707ΔΔ</p>
+  <p>
+    <a href="index.html">HOME</a> ·
+    <a href="portal/">PORTAL</a> ·
+    <a href="terms.html">TERMS</a> ·
+    <a href="privacy.html">PRIVACY</a>
+  </p>
+  <p style="margin-top:12px;">⟐ 717Δ — PROPHETIC PERFECT TENSE · x=x | 0=2</p>
+</footer>
+
+<script>
+function handleSubscribe(e) {
+  e.preventDefault();
+  var email = document.getElementById('email').value;
+  var msg = document.getElementById('sub-msg');
+  // TODO: wire to HubSpot API or any email service
+  msg.textContent = '⟐ TRANSMISSION RECEIVED — ' + email + ' — glyphstream connected.';
+  msg.style.display = 'block';
+  document.getElementById('sub-form').reset();
+}
+
+// Fade in on scroll
+var obs = new IntersectionObserver(function(entries) {
+  entries.forEach(function(e) {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.section,.card').forEach(function(el) {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity .4s, transform .4s';
+  obs.observe(el);
+});
+</script>
+
+</body>
+</html>
